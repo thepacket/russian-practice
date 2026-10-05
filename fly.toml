@@ -1,6 +1,6 @@
-# Set a unique name before deployment. Region is a proposed low-cost US default.
-app = "REPLACE_WITH_UNIQUE_FLY_APP_NAME"
-primary_region = "iad"
+# One auto-stopping machine in Toronto; always deploy to yyz.
+app = "russian-practice"
+primary_region = "yyz"
 kill_signal = "SIGQUIT"
 kill_timeout = "5s"
 [build]
