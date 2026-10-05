@@ -49,7 +49,7 @@ npm start
 
 ## Fly deployment, after account and cost approval
 
-`fly.toml` proposes one shared-CPU 256MB machine in `iad`. It explicitly sets:
+`fly.toml` configures `russian-practice` with one shared-CPU 256MB machine in Toronto (`yyz`). Always use `yyz` for Fly deployments. It explicitly sets:
 
 ```toml
 auto_stop_machines = "stop"
@@ -60,15 +60,15 @@ min_machines_running = 0
 There are **no volumes, Fly secrets, keepalive jobs or always-on minimum machines**. Fly health checks assess running machines; do not add an external uptime ping that repeatedly wakes the app. Real traffic can keep a machine running, and stopping after inactivity is managed by Fly rather than instantaneous after each request.
 
 1. Use the official Fly CLI and sign into the intended account yourself. Confirm billing and the selected region’s quote.
-2. Choose a globally unique Fly app name. Replace `REPLACE_WITH_UNIQUE_FLY_APP_NAME` in `fly.toml`.
-3. Create that app under the intended organization using `fly apps create YOUR_NAME`.
-4. Deploy one machine only: `fly deploy --ha=false`. Do not allocate a dedicated IPv4; shared IPv4/IPv6 is sufficient.
+2. Use the existing Fly app `russian-practice`; `fly.toml` already names it and pins the primary region to `yyz`.
+3. Confirm that the signed-in account can access the existing app with `fly status --app russian-practice`. Do not create a duplicate app.
+4. Deploy one machine only: `fly deploy --app russian-practice --region yyz --ha=false`. Do not allocate a dedicated IPv4; shared IPv4/IPv6 is sufficient.
 5. If a clearly transient deploy error occurs, retry once. Otherwise retain this source and inspect the error instead of repeated provisioning.
-6. Check `fly status`, `fly checks list` and the public HTTPS app URL. Confirm the machine is 256MB, there is only one machine and no volume, and it stops after a traffic-free period. Opening the app should wake it again.
+6. Check `fly status`, `fly checks list` and the public HTTPS app URL. Confirm the machine is in `yyz`, is 256MB, there is only one machine and no volume, and it stops after a traffic-free period. Opening the app should wake it again.
 7. On the intended phone, test install, key-entry/forget, Say/Say slowly, denied microphone, a short recording, Validate and Next/Cancel. Real Azure speech calls may incur charges and must be initiated by the account owner.
 8. Keep the old Sites deployment until this migration is verified. Do not delete it as part of this setup.
 
-The repository contains no deployment credential or GitHub Actions token. No deployment has been executed during preparation.
+The repository contains no deployment credential or GitHub Actions token. The initial preparation did not deploy the app. Subsequent deployment attempts did not complete; a successful live release remains to be verified.
 
 ## Hosting estimate
 
