@@ -23,4 +23,4 @@ Not verified here:
 
 No real Azure key or audio was used. Tests use dummy values and mocked provider calls. No repository push, Fly deployment, credential creation, cloud machine, volume or paid resource was performed. The prior Sites deployment is unchanged.
 
-The static hosting app name remains a placeholder in `fly.toml`; the intended Fly organization, unique name, region and costs must be confirmed at deployment. Static files are public to visitors after publication even if the source repository is private.
+Configuration update: the static hosting app is `russian-practice`, and its primary Fly region is Toronto (`yyz`). Always use `yyz` for Fly deployments. The preparation results above are historical; this configuration correction does not establish a successful live deployment. Static files are public to visitors after publication even if the source repository is private.
