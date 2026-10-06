@@ -16,12 +16,12 @@ Source migrated from the verified Sites source commit `6dd502cb5ff27b9e56770d595
 ## Credentials and privacy
 
 1. Open Settings and enter **your own Azure Speech key for East US**. Never enter a key into a public repository, chat, build variable, Fly secret or deployment command.
-2. The default keeps the key only in browser memory. Reloading/closing the app loses it. Each page load requires fresh consent and enabling of Azure calls.
-3. Optional **Remember my key on this device** stores the key in this origin’s browser local storage. This is not encrypted: app JavaScript, compromised same-origin code, browser extensions or anyone with access to that browser profile may read it. Do not use this on a shared device. Browser/device backups and synchronization are outside the app’s control.
+2. With Remember unchecked, the key, consent and enabling of Azure calls stay only in browser memory; reloading/closing the app loses them.
+3. **Remember my key on this device** (checked by default) stores the key, and whether Azure calls were approved and enabled, in this origin’s browser local storage, so setup is needed once per device. This is not encrypted: app JavaScript, compromised same-origin code, browser extensions or anyone with access to that browser profile may read it. Do not use this on a shared device. Browser/device backups and synchronization are outside the app’s control.
 4. The long-lived key goes directly to `https://eastus.api.cognitive.microsoft.com/sts/v1.0/issueToken` in the subscription-key header. It never goes to Fly or an app API. The SDK receives only the short-lived Azure token, held in memory.
 5. Browsers cannot add custom WebSocket authorization headers. Microsoft’s SDK places the short-lived token in the **Azure-only WSS connection URL**, visible in browser developer tools and potentially Azure infrastructure logs. The raw subscription key is not supplied to the SDK or placed in a URL.
 6. TTS words and submitted audio go directly to Microsoft’s fixed East US Speech endpoints. SDK telemetry is disabled. The app has no analytics, payload logging, audio storage or score storage. Azure’s own processing, billing and retention policies still apply.
-7. Forget key removes the app’s remembered copy and clears memory. Rotate the key in Azure for revocation. Requests already submitted can still finish after cancellation.
+7. Forget key removes the app’s remembered key and approval and clears memory. Rotate the key in Azure for revocation. Requests already submitted can still finish after cancellation.
 
 Local browser guardrails allow 10 speech requests/minute and 60/day (UTC). These are convenience safeguards, **not a billing cap**. They can be reset, bypassed or exceeded across tabs/devices. Use Azure resource quotas and billing controls for account-level protection. Failures/retries count locally; provider billing is determined by Azure.
 

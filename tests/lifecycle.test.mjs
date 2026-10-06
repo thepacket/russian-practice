@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {build} from 'esbuild';
 import {words,pickWord} from '../lib/words.mjs';
 import {readFile} from 'node:fs/promises';
-import {KEY_STORAGE,saveRememberedKey} from '../lib/client-speech.mjs';
+import {KEY_STORAGE,APPROVAL_STORAGE,saveRememberedKey} from '../lib/client-speech.mjs';
 const require=createRequire(import.meta.url);const {JSDOM}=require('jsdom');
 await build({plugins:[{name:'mock-services',setup(b){
  b.onLoad({filter:/client-dictionary\.mjs$/},()=>({contents:`export function subscribeDictionaryStatus(){return ()=>{};}export async function chooseWord(max,previous,signal){const r=await fetch('/api/word?max='+max+'&previous='+previous.id,{signal});if(!r.ok)throw Error('Dictionary unavailable');return r.json();}`,loader:'js'}));
@@ -23,36 +23,71 @@ await act(async()=>document.querySelector('form').dispatchEvent(new window.Event
 return {dom,media,storage,async close(){await act(async()=>root.unmount());dom.window.close();}};}
 const button=name=>[...document.querySelectorAll('button')].find(b=>b.textContent===name);
 async function click(name){const b=button(name);assert.ok(b,'missing '+name);await act(async()=>b.dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();}
-test('remembered key survives reload/update and StrictMode restoration without re-entry or startup writes',async()=>{
+test('legacy remembered key without approval asks once, then reloads ready without re-entry',async()=>{
  const storage=memoryStorage(),dummy='b'.repeat(32);
  saveRememberedKey(storage,dummy,true);storage.writes.length=0;
+ const first=await mount({},[],{storage,autoSetup:false,strict:true});
+ assert.equal(storage.getItem(KEY_STORAGE),dummy);assert.deepEqual(storage.writes,[]);
+ assert.match(document.body.textContent,/Saved key restored/);
+ await click('Say');
+ assert.match(document.body.textContent,/You do not need to enter your key again/);
+ const input=document.querySelector('input[type="password"]');
+ assert.equal(input.value,'');assert.equal(input.required,false);
+ const checks=document.querySelectorAll('[role="checkbox"]');
+ assert.equal(checks[0].getAttribute('aria-checked'),'true');
+ assert.equal(checks[1].getAttribute('aria-checked'),'false');
+ assert.equal(checks[2].getAttribute('aria-checked'),'false');
+ for(const i of [1,2])await act(async()=>checks[i].dispatchEvent(new window.MouseEvent('click',{bubbles:true})));
+ await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
+ assert.equal(storage.getItem(KEY_STORAGE),dummy);assert.equal(storage.getItem(APPROVAL_STORAGE),'1');
+ assert.match(document.body.textContent,/won’t need to enter it again/);
+ await first.close();
  for(let reload=0;reload<2;reload++){
-  const app=await mount({},[],{storage,autoSetup:false,strict:true});
-  assert.equal(storage.getItem(KEY_STORAGE),dummy);assert.deepEqual(storage.writes,[]);
-  assert.match(document.body.textContent,/Saved key restored/);
+  storage.writes.length=0;
+  let speech=0;const app=await mount({},[],{storage,autoSetup:false,strict:true});
+  assert.deepEqual(storage.writes,[]);
+  assert.match(document.body.textContent,/As many tries as you need/);
+  globalThis.fetch=async()=>{speech++;return new Response(new Uint8Array([1,2,3]));};
+  globalThis.Audio=class{play(){return Promise.resolve();}pause(){}};
   await click('Say');
-  assert.match(document.body.textContent,/You do not need to enter your key again/);
-  const input=document.querySelector('input[type="password"]');
-  assert.equal(input.value,'');assert.equal(input.required,false);
-  const checks=document.querySelectorAll('[role="checkbox"]');
-  assert.equal(checks[0].getAttribute('aria-checked'),'true');
-  assert.equal(checks[1].getAttribute('aria-checked'),'false');
-  assert.equal(checks[2].getAttribute('aria-checked'),'false');
-  for(const i of [1,2])await act(async()=>checks[i].dispatchEvent(new window.MouseEvent('click',{bubbles:true})));
-  await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
-  assert.equal(storage.getItem(KEY_STORAGE),dummy);
-  assert.doesNotMatch(document.body.textContent,/Enter a valid Azure Speech key/);
+  assert.equal(document.querySelector('[role="dialog"]'),null,'Say must not reopen setup');assert.equal(speech,1);
   await app.close();assert.equal(storage.getItem(KEY_STORAGE),dummy);
-  assert.ok(storage.writes.every(([action])=>action==='set'));storage.writes.length=0;
  }
 });
-test('explicit Forget removes the saved key and the next load requests a key',async()=>{
- const storage=memoryStorage();saveRememberedKey(storage,'c'.repeat(32),true);
- const first=await mount({},[],{storage,autoSetup:false});await click('Say');await click('Forget key on this device');
- assert.equal(storage.getItem(KEY_STORAGE),null);await first.close();
+test('first setup remembers key and approval by default',async()=>{
+ const storage=memoryStorage();
+ const app=await mount({},[],{storage,autoSetup:false});
+ await click('Say');
+ assert.equal(document.querySelector('[role="checkbox"]').getAttribute('aria-checked'),'true');
+ const input=document.querySelector('input[type="password"]');
+ await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'d'.repeat(32));input.dispatchEvent(new window.Event('input',{bubbles:true}));});
+ const checks=document.querySelectorAll('[role="checkbox"]');
+ for(const i of [1,2])await act(async()=>checks[i].dispatchEvent(new window.MouseEvent('click',{bubbles:true})));
+ await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
+ assert.equal(storage.getItem(KEY_STORAGE),'d'.repeat(32));assert.equal(storage.getItem(APPROVAL_STORAGE),'1');
+ await app.close();
+});
+test('unchecking Remember keeps nothing on the device',async()=>{
+ const storage=memoryStorage();saveRememberedKey(storage,'e'.repeat(32),true,true);
+ const app=await mount({},[],{storage,autoSetup:false});
+ await act(async()=>document.querySelector('[aria-label="Open Azure setup"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
+ const checks=document.querySelectorAll('[role="checkbox"]');
+ assert.equal(checks[1].getAttribute('aria-checked'),'true');assert.equal(checks[2].getAttribute('aria-checked'),'true');
+ await act(async()=>checks[0].dispatchEvent(new window.MouseEvent('click',{bubbles:true})));
+ await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
+ assert.equal(storage.getItem(KEY_STORAGE),null);assert.equal(storage.getItem(APPROVAL_STORAGE),null);
+ await app.close();
+});
+test('explicit Forget removes the saved key and approval and the next load requests a key',async()=>{
+ const storage=memoryStorage();saveRememberedKey(storage,'c'.repeat(32),true,true);
+ const first=await mount({},[],{storage,autoSetup:false});
+ await act(async()=>document.querySelector('[aria-label="Open Azure setup"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
+ await click('Forget key on this device');
+ assert.equal(storage.getItem(KEY_STORAGE),null);assert.equal(storage.getItem(APPROVAL_STORAGE),null);await first.close();
  const second=await mount({},[],{storage,autoSetup:false});await click('Say');
  assert.equal(document.querySelector('input[type="password"]').required,true);
- assert.equal(document.querySelector('[role="checkbox"]').getAttribute('aria-checked'),'false');
+ const checks=document.querySelectorAll('[role="checkbox"]');
+ assert.equal(checks[1].getAttribute('aria-checked'),'false');assert.equal(checks[2].getAttribute('aria-checked'),'false');
  assert.doesNotMatch(document.body.textContent,/Saved key restored/);await second.close();
 });
 test('microphone denied gives retry guidance and no Validate',async()=>{const app=await mount();await click('Listen');assert.match(document.body.textContent,/permission was denied/);assert.equal(button('Validate').disabled,true);await app.close();});
