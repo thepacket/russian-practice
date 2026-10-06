@@ -25,3 +25,12 @@ test('alphabet has the 33 letters in standard order with Azure-supported sounds'
  assert.match(ssml({text:'и',ipa:i.sound.say},false,'Svetlana'),/<break time="250ms"\/>и<\/prosody>/,'plain letter, no phoneme override');
  assert.match(ssml(words[0],false,'Svetlana'),/<break time="250ms"\/><phoneme/,'short lead-in so Android does not clip the start');
 });
+test('silence trimming keeps the spoken part with a margin',async()=>{
+ const {trimSilence}=await import('../lib/audio.mjs');const rate=48000;
+ const clip=new Float32Array(rate*8);for(let i=rate*3;i<rate*4;i++)clip[i]=Math.sin(i/7)*0.3;for(let i=0;i<clip.length;i+=97)clip[i]+=0.002;
+ const [kept]=trimSilence([clip.subarray(0,rate*5),clip.subarray(rate*5)],rate);
+ assert.ok(kept.length>rate*1.5&&kept.length<rate*1.7,`kept ${kept.length/rate}s of an 8s clip with 1s of speech`);
+ assert.ok(Math.abs(kept[Math.round(rate*0.5)])>0.1||Math.abs(kept[Math.round(rate*0.5)+3])>0.1,'speech is inside the kept part');
+ const quiet=new Float32Array(rate);assert.equal(trimSilence([quiet],rate)[0].length,rate,'all-quiet clip is left for the quiet check');
+ assert.ok(validateWav(toWav(trimSilence([clip],rate),rate)).duration<2);
+});
