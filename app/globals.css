@@ -11,7 +11,9 @@
 .controls .speak.listening,.controls .speak.listening:hover{background:#654336;border-color:#ae826d;color:#f6e9e2}
 
 /* Spare height sits above the source line, which stays with the footer at the bottom. */
-.source-note{margin-top:auto;padding-top:12px}
+/* The buttons stay anchored at the bottom, just above the source line, however long the word or message is. */
+.controls{margin-top:auto}
+.source-note{padding-top:12px;padding-bottom:max(4px,env(safe-area-inset-bottom))}
 
 /* Accent palette: each colour marks a function, on top of the navy base. */
 :root{--say:#4fd1c5;--slow:#b39bff;--speak:#ff9f5a;--next:#6cb6ff;--good:#6fdc8c;--fair:#f6c453;--low:#ff7a7a;--vowel:#f6c453;--consonant:#6cb6ff}

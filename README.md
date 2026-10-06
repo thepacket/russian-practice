@@ -8,7 +8,7 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 <p align="center">
-  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word зи́мний (winter) with its stressed vowel highlighted, and the Say, Say Slowly, Tap to Speak and Next Word buttons" width="300">
+  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word снято́й (skim, skimmed) with its stressed vowel highlighted, and the Say, Say Slowly, Tap to Speak and Next Word buttons at the bottom" width="300">
   <img src="docs/screenshots/alphabet.jpg" alt="Alphabet panel with vowels in amber and consonants in blue, showing letter names, IPA sounds and unstressed example words" width="300">
 </p>
 
@@ -63,7 +63,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 - Alphabet panel: the 33 letters in standard order with names and IPA; tapping a letter plays its sound (consonants with a short neutral vowel, as in "buh"). Vowels also show their unstressed sound, played inside a common example word, because Azure voices an isolated reduced vowel as a full one
 - Generated speech is kept in memory for the session, so replaying a word or letter does not call Azure again
 - When Azure refuses a request, the app shows Azure's own reason (query strings stripped) instead of a generic error
-- Tap to Speak records up to eight seconds of microphone audio. "Speak now" appears once the mic is actually live, which matters for Bluetooth headsets. Recording stops by itself after about 0.8 s of quiet following the word (or on a second tap); the silence is trimmed and the clip submitted. Too-short clips are not sent, and Next/Cancel discard the clip. The audio engine is created after the microphone opens, so a Bluetooth headset that switched to its call profile is already the active device. A Bluetooth headset mic records at phone-call quality, so the app suggests the phone's own mic when Azure is unsure
+- Tap to Speak records up to eight seconds of microphone audio. "Speak now" appears once the mic is actually live, which matters for Bluetooth headsets. Recording stops by itself after about 0.8 s of quiet following the word (or on a second tap); the silence is trimmed and the clip submitted. Too-short clips are not sent, and Next Word discards the clip. The audio engine is created after the microphone opens, so a Bluetooth headset that switched to its call profile is already the active device. A Bluetooth headset mic records at phone-call quality, so the app suggests the phone's own mic when Azure is unsure
 - Conservative Azure pronunciation estimates, not a Russian stress or individual-phoneme diagnosis. The score is shown even when Azure is unsure which word it heard (common for one learner word), marked as rough; if Azure does not answer within 20 seconds, the app says so
 - Installable mobile PWA with a dictionary-only local cache; no persistent audio/score cache or offline speech library
 
