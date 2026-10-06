@@ -19,6 +19,21 @@ def stress_number(form):
         if ch in VOWELS:vowels+=1
         if ch=='́' or ch=='ё':stressed.append(vowels)
     return stressed[0] if len(stressed)==1 else (1 if vowels==1 else None)
+def gloss_of(sense):
+    # Keep Wiktionary's qualifiers, e.g. "(colloquial)", from the raw gloss. A relational adjective
+    # ("(relational) stress") is defined by its noun, which reads like a noun to a learner, so its
+    # first part is spelled out: "relating to stress". Possessives ("woodsman's") already read as adjectives.
+    raw=(sense.get('raw_glosses') or [None])[-1]
+    gloss=raw if isinstance(raw,str) and raw.strip() else sense['glosses'][-1]
+    relational='relational' in sense.get('tags',[]) or gloss.startswith('(relational)')
+    gloss=re.sub(r'\(relational\)\s*','',gloss).strip()
+    # Kaikki sometimes repeats a label inside the leading qualifier, e.g. "(biochemistry, biochemistry)".
+    gloss=re.sub(r'^\(([^()]*)\)',lambda m:'('+', '.join(dict.fromkeys(p.strip() for p in m.group(1).split(',')))+')',gloss)
+    if relational and gloss:
+        first,sep,rest=gloss.partition('; ')
+        if not re.search(r"'s?\b|^(of|relating|pertaining)\b",first):first='relating to '+first
+        gloss=first+sep+rest
+    return gloss
 def ipa_stress(ipa):
     vowels='aʌəɛiɪɨɔu'
     if ipa.count('ˈ')==1:return sum(ch in vowels for ch in ipa.split('ˈ')[0])+1
@@ -46,7 +61,7 @@ for line in SOURCE.open():
             pronunciation=(ipa,original);break
         if not pronunciation:continue
         for sense in senses:
-            gloss=sense['glosses'][-1]
+            gloss=gloss_of(sense)
             if not isinstance(gloss,str) or not re.search('[A-Za-z]',gloss) or len(gloss)>300:continue
             if re.search(r'\b(archaic|obsolete|vulgar|offensive|derogatory|slur|misspelling)\b',gloss,re.I):continue
             key=(text,form)
@@ -66,7 +81,7 @@ out=ROOT/'public/dictionary-data.json'
 out.write_text(json.dumps(rows,ensure_ascii=False,separators=(',',':'))+'\n')
 (ROOT/'lib/dictionary-data.mjs').write_text('// Generated from Kaikki/Wiktionary; CC BY-SA 4.0. See public/dictionary-attribution.json.\nexport default '+json.dumps(rows,ensure_ascii=False,separators=(',',':'))+';\n')
 counts.update({'entries':len(rows),'uniqueSpellings':len({r[0] for r in rows}),'maxLetters':max(len(r[0]) for r in rows)})
-meta={'source':'English Wiktionary contributors, extracted by Kaikki.org / Wiktextract','sourceUrl':'https://kaikki.org/dictionary/Russian/','downloadUrl':'https://kaikki.org/dictionary/Russian/kaikki.org-dictionary-Russian.jsonl','dumpDate':'2026-09-02','extractionDate':'2026-10-03','retrievedDate':'2026-10-05','sourceSha256':hashlib.file_digest(SOURCE.open('rb'), 'sha256').hexdigest(),'license':'CC BY-SA 4.0','licenseUrl':'https://creativecommons.org/licenses/by-sa/4.0/','modifications':'Selected lowercase single-word dictionary lemmas with English glosses, explicit or monosyllabic stress, and a matching source IPA. Excluded tagged unsuitable/obsolete senses, inflections, names, multiword expressions and ambiguous/unsupported phonetics. Selected one gloss for each spelling/stress pair. IPA mapped to Azure ru-RU inventory; original IPA retained. Synthesized speech has not been audio-validated.','ipaMapping':{chr(k):v for k,v in MAP.items()},'counts':dict(counts),'lettersHistogram':dict(sorted(collections.Counter(len(r[0]) for r in rows).items()))}
+meta={'source':'English Wiktionary contributors, extracted by Kaikki.org / Wiktextract','sourceUrl':'https://kaikki.org/dictionary/Russian/','downloadUrl':'https://kaikki.org/dictionary/Russian/kaikki.org-dictionary-Russian.jsonl','dumpDate':'2026-09-02','extractionDate':'2026-10-03','retrievedDate':'2026-10-05','sourceSha256':hashlib.file_digest(SOURCE.open('rb'), 'sha256').hexdigest(),'license':'CC BY-SA 4.0','licenseUrl':'https://creativecommons.org/licenses/by-sa/4.0/','modifications':'Selected lowercase single-word dictionary lemmas with English glosses, explicit or monosyllabic stress, and a matching source IPA. Excluded tagged unsuitable/obsolete senses, inflections, names, multiword expressions and ambiguous/unsupported phonetics. Selected one gloss for each spelling/stress pair, keeping Wiktionary’s leading qualifiers (for example "(colloquial)") and writing relational-adjective glosses as "relating to …". IPA mapped to Azure ru-RU inventory; original IPA retained. Synthesized speech has not been audio-validated.','ipaMapping':{chr(k):v for k,v in MAP.items()},'counts':dict(counts),'lettersHistogram':dict(sorted(collections.Counter(len(r[0]) for r in rows).items()))}
 (ROOT/'public/dictionary-attribution.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n')
 starter=next(r for r in rows if r[0]=='мама')
 summary={'dictionarySize':counts['uniqueSpellings'],'entryCount':counts['entries'],'maxWordLength':counts['maxLetters'],'lengthCounts':{str(cap):sum(len(r[0])<=cap for r in rows) for cap in range(1,counts['maxLetters']+1)},'initialWord':dict(zip(['text','stress','meaning','ipa','sourceIpa','pos','senseId'],starter))}

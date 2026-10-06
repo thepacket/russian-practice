@@ -7,3 +7,6 @@ dist/
 *.tsbuildinfo
 tests/.practice-test.cjs
 __pycache__/
+
+# Local Wiktionary/Kaikki source for scripts/import-russian-dictionary.py (~945 MB); not committed or deployed.
+data/

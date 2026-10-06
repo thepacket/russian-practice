@@ -10,7 +10,7 @@ const response=()=>new Response(bytes);
 test('single gzip contains entire corpus; all limits select locally with no repeated spelling',async()=>{
  let calls=0;const storage=cacheStorage(),statuses=[];
  const choose=createDictionary(async url=>{calls++;assert.equal(url,manifest.url);return response();},Math.random,{storage});
- assert.equal(manifest.count,41231);assert.equal(manifest.spellings,40860);
+ const meta=JSON.parse(await readFile(new URL('../public/dictionary-attribution.json',import.meta.url),'utf8'));assert.equal(manifest.count,meta.counts.entries);assert.equal(manifest.spellings,meta.counts.uniqueSpellings);
  let previous=words[0];for(let max=1;max<=32;max++)for(let i=0;i<15;i++){const word=await choose(max,previous,undefined,s=>statuses.push(s));assert.ok(word.length<=max);assert.notEqual(word.text,previous.text);assert.deepEqual(word,words[word.id]);previous=word;}
  assert.equal(calls,1);assert.equal(storage.writes,1);assert.match(statuses.at(-1),/saved on this device/);
  const offline=createDictionary(()=>{throw Error('Network forbidden');},()=>.5,{storage});assert.ok((await offline(32)).id>=0);

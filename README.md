@@ -2,7 +2,7 @@
 
 An installable web app (PWA) for practising Russian pronunciation, one word at a time. Live at <https://russian-practice.fly.dev>.
 
-- **Wiktionary dictionary**: 40,860 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a maximum word length from 1 to 32 letters.
+- **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a maximum word length from 1 to 32 letters.
 - **Say / Say Slowly**: hear the word from an Azure neural voice (Svetlana or Dmitry), at normal or half speed.
 - **Tap to Speak**: tap, wait for "Speak now", and say the word. Recording stops by itself about a second after you finish (or tap again), and you get an approximate Azure pronunciation score.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
@@ -24,7 +24,7 @@ Azure bills your account for speech use. The app does not limit requests, so use
 
 ## Development
 
-Requires Node 24 to build and test; production serves static files only.
+Requires Node 24 to build and test; production serves static files only. To rebuild the dictionary, download the Kaikki Russian JSONL (see `public/dictionary-attribution.json`) to `data/kaikki-russian.jsonl` (git-ignored) and run `python3 scripts/import-russian-dictionary.py data/kaikki-russian.jsonl`.
 
 ```sh
 npm ci
@@ -56,7 +56,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 
 ## Feature details
 
-- 41,231 spelling/stress entries, 40,860 distinct spellings, randomized by maximum length (1–32 Cyrillic letters), with no immediate repeat of the same spelling
+- 41,224 spelling/stress entries, 40,853 distinct spellings, randomized by maximum length (1–32 Cyrillic letters), with no immediate repeat of the same spelling
 - English meaning, canonical stress, Wiktionary source links, sourced IPA used for synthesis
 - The stressed vowel is highlighted in the word; scores are coloured green (80+), amber (60–79) or coral (below 60); in the Alphabet, vowels are amber (like the stressed vowel) and consonants blue
 - Svetlana/Dmitry Russian neural voices; normal and half-speed (Say Slowly) speech. Each clip starts with a 250ms pause so phones don't clip the first sound
@@ -110,9 +110,9 @@ Fly’s [October 1, 2026 pricing update](https://fly.io/pricing-update/) lists t
 
 Dictionary data and adaptations are CC BY-SA 4.0, attributed to English Wiktionary contributors via Kaikki/Wiktextract. Exact snapshot, input hash, transformations and counts are in `public/dictionary-attribution.json`; each entry links to Wiktionary. The source dump dates to September 2, 2026; extraction October 3, 2026. The UI links the license and offers the adapted JSON download.
 
-All 442,594 source records were considered. Lowercase single-word lemmas with matching English gloss, lexical stress and supported IPA were retained; names, phrases, inflected-only records and unsuitable senses were excluded. This is broad vocabulary, not the whole Russian language or a curated course. Phonetic adaptations have not been listening-validated.
+All 442,594 source records were considered. Lowercase single-word lemmas with matching English gloss, lexical stress and supported IPA were retained; names, phrases, inflected-only records and unsuitable senses were excluded. Meanings keep Wiktionary's labels such as "(colloquial)" or "(slang)", and relational adjectives, which Wiktionary defines by their noun, read "relating to …" (for example стре́ссовый: "relating to stress"). This is broad vocabulary, not the whole Russian language or a curated course. Phonetic adaptations have not been listening-validated.
 
-Build generation creates one complete content-hashed gzip archive (1,814,163 bytes; 41,231 entries / 40,860 distinct spellings). The app downloads it once at startup, checks its SHA-256 and counts, decompresses and parses it in a dedicated Web Worker, then saves the verified compressed bytes in a dictionary-only CacheStorage cache. Later page loads use that local copy without a dictionary network request. Browser storage can be cleared or evicted; if storage is denied/full, the current tab still works and the status explains that another visit will need a download. Updating the dictionary changes its content hash and triggers a fresh whole-corpus download.
+Build generation creates one complete content-hashed gzip archive (1,867,107 bytes; 41,224 entries / 40,853 distinct spellings). The app downloads it once at startup, checks its SHA-256 and counts, decompresses and parses it in a dedicated Web Worker, then saves the verified compressed bytes in a dictionary-only CacheStorage cache. Later page loads use that local copy without a dictionary network request. Browser storage can be cleared or evicted; if storage is denied/full, the current tab still works and the status explains that another visit will need a download. Updating the dictionary changes its content hash and triggers a fresh whole-corpus download.
 
 Next and maximum-letter changes select entirely from the worker's in-memory dictionary, uniformly across eligible entries while excluding all variants of the previous spelling. They do not fetch more sections. Concurrent selections share the startup download; cancelling a selection does not restart it. Download progress, errors and storage warnings are shown under the buttons; the status line disappears once the dictionary is ready. A stalled download times out after 60 seconds; Next retries. Interrupted or corrupt data is never saved; a corrupt saved copy is replaced. Modern HTTPS browsers with module workers, Web Crypto and DecompressionStream are required.
 

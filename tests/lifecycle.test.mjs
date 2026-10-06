@@ -116,7 +116,7 @@ test('dictionary status line shows progress and warnings but disappears once the
  const app=await mount();const status=async text=>{await act(async()=>globalThis.__dictionaryStatus(text));await flush();};
  const notes=()=>[...document.querySelectorAll('.dictionary-note')].map(n=>n.textContent).join(' | ');
  await status('Downloading the whole dictionary…');assert.match(notes(),/Downloading the whole dictionary/);
- await status('Whole dictionary ready · saved on this device');assert.doesNotMatch(notes(),/Whole dictionary ready/);assert.match(notes(),/Wiktionary dictionary · 40,860 words/);
+ await status('Whole dictionary ready · saved on this device');assert.doesNotMatch(notes(),/Whole dictionary ready/);assert.match(notes(),/Wiktionary dictionary · [\d,]+ words/);
  await status('Whole dictionary ready · storage unavailable; this tab still works offline');assert.match(notes(),/storage unavailable/);
  await app.close();
 });

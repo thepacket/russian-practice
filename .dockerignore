@@ -7,3 +7,4 @@ tests/.practice-test.cjs
 *.tsbuildinfo
 docs
 .github
+data
