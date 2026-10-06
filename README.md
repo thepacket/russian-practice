@@ -4,7 +4,7 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 
 - **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a maximum word length from 1 to 32 letters.
 - **Say / Say Slowly**: hear the word from an Azure neural voice (Svetlana or Dmitry), at normal or half speed.
-- **Tap to Speak**: tap, wait for "Speak now", and say the word. Recording stops by itself about a second after you finish (or tap again), and you get an approximate Azure pronunciation score.
+- **Tap to Speak**: tap and say the word. Recording stops by itself about a second after you finish (or tap again), and you get an approximate Azure pronunciation score.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 <p align="center">
@@ -48,7 +48,7 @@ Test suites (`npm test`):
 - `tests/dictionary.test.mjs`: full dictionary counts, licensing/provenance, stress and selection coverage
 - `tests/client.test.mjs`: direct token destination/header, key and approval storage, SDK cleanup, cancellation, Azure error details, no local request limit and Fly config
 - `tests/full-dictionary.test.mjs`: one-download coverage, offline selection, worker cancellation, timeouts, retry, corrupt cache, quota failure and content-version replacement
-- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, tap-to-speak (auto-stop after the word, second-tap cancel and stop, too-short clips, 8-second stop, live-mic detection, mic opened before the audio engine, Bluetooth hint), mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next/Cancel, failed dictionary selection and rapid length changes
+- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, tap-to-speak (auto-stop after the word, second-tap cancel and stop, too-short clips, 8-second stop, leading digital silence dropped, silent-mic report, mic opened before the audio engine, Bluetooth hint), mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next/Cancel, failed dictionary selection and rapid length changes
 
 ## Architecture
 
@@ -63,7 +63,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 - Alphabet panel: the 33 letters in standard order with names and IPA; tapping a letter plays its sound (consonants with a short neutral vowel, as in "buh"). Vowels also show their unstressed sound, played inside a common example word, because Azure voices an isolated reduced vowel as a full one
 - Generated speech is kept in memory for the session, so replaying a word or letter does not call Azure again
 - When Azure refuses a request, the app shows Azure's own reason (query strings stripped) instead of a generic error
-- Tap to Speak records up to eight seconds of microphone audio. "Speak now" appears once the mic is actually live, which matters for Bluetooth headsets. Recording stops by itself after about 0.8 s of quiet following the word (or on a second tap); the silence is trimmed and the clip submitted. Too-short clips are not sent, and Next Word discards the clip. The audio engine is created after the microphone opens, so a Bluetooth headset that switched to its call profile is already the active device. A Bluetooth headset mic records at phone-call quality, so the app suggests the phone's own mic when Azure is unsure
+- Tap to Speak records up to eight seconds of microphone audio. The counter starts at the first real sound: digital silence a Bluetooth headset sends while switching to its call profile is dropped, not counted or sent, and a microphone that stays silent for 10 seconds is reported. Recording stops by itself after about 0.8 s of quiet following the word (or on a second tap); the silence is trimmed and the clip submitted. Too-short clips are not sent, and Next Word discards the clip. The audio engine is created after the microphone opens, so a Bluetooth headset that switched to its call profile is already the active device. A Bluetooth headset mic records at phone-call quality, so the app suggests the phone's own mic when Azure is unsure. Settings has a Microphone selector (Automatic, or any microphone the browser lists once access is granted); the choice is remembered on the device
 - Conservative Azure pronunciation estimates, not a Russian stress or individual-phoneme diagnosis. The score is shown even when Azure is unsure which word it heard (common for one learner word), marked as rough; if Azure does not answer within 20 seconds, the app says so
 - Installable mobile PWA with a dictionary-only local cache; no persistent audio/score cache or offline speech library
 

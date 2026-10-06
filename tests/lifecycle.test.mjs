@@ -129,6 +129,39 @@ test('Next Word does not flash the dictionary-ready status, but shows download p
  await act(async()=>d.resolve(Response.json(words[0])));await flush();
  await app.close();
 });
+test('the chosen microphone is remembered and used for recording; Automatic leaves it to the phone',async()=>{
+ let worklet;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
+ const storage=memoryStorage();saveRememberedKey(storage,'a'.repeat(32),true);storage.setItem('rwp.mic.v1','spk');
+ const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet},[],{storage});
+ const requests=[];app.media.getUserMedia=async c=>{requests.push(c.audio.deviceId?.ideal??'automatic');return {getTracks:()=>[{stop(){}}]};};
+ app.media.enumerateDevices=async()=>[{kind:'audioinput',deviceId:'default',label:'Default'},{kind:'audioinput',deviceId:'bt',label:'Bluetooth headset'},{kind:'audioinput',deviceId:'spk',label:'Speakerphone'},{kind:'audiooutput',deviceId:'out',label:'Speaker'}];
+ await tap();assert.deepEqual(requests,['spk'],'saved choice is used');await tap();
+ await act(async()=>document.querySelector('[aria-label="Open Azure setup"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
+ assert.match(document.querySelector('[aria-label="Microphone"]').textContent,/Speakerphone/);assert.match(document.body.textContent,/phone’s own microphone usually gives Azure clearer audio/);
+ await app.close();
+ storage.removeItem('rwp.mic.v1');const second=await mount({AudioContext:Context,AudioWorkletNode:Worklet},[],{storage});
+ const later=[];second.media.getUserMedia=async c=>{later.push(c.audio.deviceId);return {getTracks:()=>[{stop(){}}]};};second.media.enumerateDevices=async()=>[{kind:'audioinput',deviceId:'',label:''}];
+ await tap();assert.deepEqual(later,[undefined],'Automatic does not pick a device');await tap();
+ await act(async()=>document.querySelector('[aria-label="Open Azure setup"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
+ assert.match(document.body.textContent,/Microphone names appear here after you allow microphone access once/);
+ await second.close();
+});
+test('leading digital silence is not counted; the clock starts at the first sound; a silent mic is reported',async()=>{
+ let worklet,stopped=0,requests=0;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
+ const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});
+ globalThis.fetch=async()=>{requests++;return Response.json({kind:'scored',accuracy:70});};
+ await tap();
+ // Four seconds of digital silence while a headset switches profile: nothing is counted.
+ await act(async()=>worklet.port.onmessage({data:new Float32Array(48000*4)}));await act(async()=>{await new Promise(r=>setTimeout(r,250));});
+ assert.match(document.body.textContent,/Speak now… 0s \/ 8s/,'counter shows at once and has not started');
+ // Real audio: the clock starts here, so 8 seconds of sound still fit.
+ await act(async()=>worklet.port.onmessage({data:new Float32Array(48000*7).fill(.1)}));assert.equal(requests,0,'7 s of sound after 4 s of silence is still under the limit');
+ await act(async()=>worklet.port.onmessage({data:new Float32Array(48000).fill(.1)}));await flush();assert.equal(requests,1,'stops at 8 s of real audio');
+ // A microphone that delivers only silence is reported after 10 seconds.
+ await tap();await act(async()=>worklet.port.onmessage({data:new Float32Array(48000*10)}));await flush();
+ assert.match(document.body.textContent,/No sound is coming from the microphone/);assert.equal(speak().textContent,'Tap to Speak');assert.equal(requests,1);
+ await app.close();
+});
 test('microphone denied gives retry guidance and nothing to check',async()=>{const app=await mount();let requests=0;globalThis.fetch=async()=>{requests++;return Response.json({});};await tap();assert.match(document.body.textContent,/permission was denied/);assert.equal(speak().textContent,'Tap to Speak');assert.equal(requests,0);await app.close();});
 test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await tap();await click('Next Word');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(speak().textContent,'Tap to Speak');assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next Word');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});
@@ -167,9 +200,9 @@ test('recording keeps the browser voice settings, says Speak now only once sound
  app.media.getUserMedia=async c=>{constraints=c;return {getTracks:()=>[{stop(){}}],getAudioTracks:()=>[{label:'AirPods Pro'}]};};
  await tap();
  assert.equal(constraints.audio.noiseSuppression,true);assert.equal(constraints.audio.echoCancellation,true);assert.equal(constraints.audio.deviceId,undefined,'default mic, no device switching');
- assert.match(document.body.textContent,/Starting microphone/);
+ assert.match(document.body.textContent,/Speak now… 0s/);
  await act(async()=>worklet.port.onmessage({data:new Float32Array(24000)}));
- assert.match(document.body.textContent,/Starting microphone/,'silence while the headset switches does not count as live');
+ assert.match(document.body.textContent,/Speak now… 0s/,'silence while the headset switches is not counted');
  await act(async()=>worklet.port.onmessage({data:new Float32Array(4800).fill(.05)}));
  await act(async()=>worklet.port.onmessage({data:new Float32Array(9600).fill(.1)}));
  assert.match(document.body.textContent,/Speak now/);
@@ -208,7 +241,7 @@ test('the audio engine starts after the microphone opens, closes after each reco
  const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});assert.equal(contexts,0,'nothing prepared before a tap');
  app.media.getUserMedia=async()=>{order.push('mic');return {getTracks:()=>[{stop(){}}]};};globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:75});
  for(let i=0;i<2;i++){
-  await tap();assert.match(document.body.textContent,/Starting microphone/);
+  await tap();assert.match(document.body.textContent,/Speak now/);
   await act(async()=>worklet.port.onmessage({data:new Float32Array(128).fill(.1)}));assert.match(document.body.textContent,/Speak now/,'live on the first sound');
   await act(async()=>worklet.port.onmessage({data:new Float32Array(48000).fill(.1)}));await tap();assert.match(document.body.textContent,/75/);
  }
