@@ -8,8 +8,8 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 <p align="center">
-  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word этру́ск with Say, Say Slowly, Tap to Speak and Next Word buttons" width="300">
-  <img src="docs/screenshots/alphabet.jpg" alt="Alphabet panel showing letters with names, IPA sounds and unstressed example words" width="300">
+  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word зи́мний (winter) with its stressed vowel highlighted, and the Say, Say Slowly, Tap to Speak and Next Word buttons" width="300">
+  <img src="docs/screenshots/alphabet.jpg" alt="Alphabet panel with vowels in teal and consonants in blue, showing letter names, IPA sounds and unstressed example words" width="300">
 </p>
 
 There is no backend or shared account. Each person uses their **own Azure Speech key (East US)**. The browser talks to Microsoft Azure directly, and the key never reaches the app's host.
@@ -58,6 +58,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 
 - 41,231 spelling/stress entries, 40,860 distinct spellings, randomized by maximum length (1–32 Cyrillic letters), with no immediate repeat of the same spelling
 - English meaning, canonical stress, Wiktionary source links, sourced IPA used for synthesis
+- The stressed vowel is highlighted in the word; scores are coloured green (80+), amber (60–79) or coral (below 60); in the Alphabet, vowels are teal and consonants blue
 - Svetlana/Dmitry Russian neural voices; normal and half-speed (Say Slowly) speech. Each clip starts with a 250ms pause so phones don't clip the first sound
 - Alphabet panel: the 33 letters in standard order with names and IPA; tapping a letter plays its sound (consonants with a short neutral vowel, as in "buh"). Vowels also show their unstressed sound, played inside a common example word, because Azure voices an isolated reduced vowel as a full one
 - Generated speech is kept in memory for the session, so replaying a word or letter does not call Azure again
