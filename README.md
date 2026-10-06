@@ -7,6 +7,11 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 - **Listen / Validate**: record up to eight seconds and get an approximate Azure pronunciation score.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
+<p align="center">
+  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word аргама́к with Say, Say slowly, Listen and Validate buttons" width="300">
+  <img src="docs/screenshots/alphabet.jpg" alt="Alphabet panel showing letters with names, IPA sounds and unstressed example words" width="300">
+</p>
+
 There is no backend or shared account. Each person uses their **own Azure Speech key (East US)**. The browser talks to Microsoft Azure directly, and the key never reaches the app's host.
 
 ## Getting started
@@ -29,7 +34,7 @@ npm test
 npm run build
 ```
 
-Production is a static build served by nginx on Fly.io (app `russian-practice`, Toronto `yyz`):
+The official instance is a static build served by nginx on Fly.io (app `russian-practice`, Toronto `yyz`). To host your own, see [Deploy your own copy](#deploy-your-own-copy).
 
 ```sh
 fly deploy --app russian-practice --primary-region yyz --regions yyz --remote-only
@@ -48,8 +53,6 @@ Test suites (`npm test`):
 ## Architecture
 
 A static, multi-user Russian pronunciation PWA. React + TypeScript in the browser; nginx serves built files on Fly.io. **No application backend, shared user account, server-side Azure key, database or volume.** Each person supplies their own Azure Speech key on their device and contacts Microsoft Azure directly.
-
-Source migrated from the verified Sites source commit `6dd502cb5ff27b9e56770d5954145029c0d21efc`. The existing Sites deployment has not been changed or removed.
 
 ## Feature details
 
@@ -75,11 +78,20 @@ Source migrated from the verified Sites source commit `6dd502cb5ff27b9e56770d595
 
 The app does not limit how many speech requests you make. Use Azure resource quotas and billing controls for account-level protection; provider billing is determined by Azure.
 
-The static website is publicly readable when deployed. A private GitHub repository protects repository access; it does not make delivered HTML, JS or dictionary files private. Client-side Azure authentication controls access to each user’s Azure resource, not access to the website.
+The website and this repository are public and contain no credentials. Client-side Azure authentication controls access to each user’s Azure resource, not access to the website.
 
-## Fly deployment
+## Deploy your own copy
 
-`fly.toml` configures `russian-practice` with one shared-CPU 256MB machine in Toronto (`yyz`). Always use `yyz` for Fly deployments. It explicitly sets:
+The app is a static site, so any static host works. The repository includes a Dockerfile (unprivileged nginx on port 8080) and a `fly.toml` for [Fly.io](https://fly.io). The official instance runs as the Fly app `russian-practice` on one shared-CPU 256MB machine in Toronto (`yyz`).
+
+To run your own on Fly:
+
+1. Install the Fly CLI and sign in with `fly auth login`.
+2. Create an app with your own name, for example `fly apps create my-russian-practice`, and set `app` (and, if you like, `primary_region`) in `fly.toml`.
+3. Deploy one machine: `fly deploy --app my-russian-practice --ha=false`. A shared IPv4/IPv6 address is enough; you don't need a dedicated IPv4.
+4. Open the app's HTTPS URL, set up your Azure key and try Say, Listen and Validate.
+
+`fly.toml` lets the machine stop when idle and start on the next request:
 
 ```toml
 auto_stop_machines = "stop"
@@ -87,18 +99,7 @@ auto_start_machines = true
 min_machines_running = 0
 ```
 
-There are **no volumes, Fly secrets, keepalive jobs or always-on minimum machines**. Fly health checks assess running machines; do not add an external uptime ping that repeatedly wakes the app. Real traffic can keep a machine running, and stopping after inactivity is managed by Fly rather than instantaneous after each request.
-
-1. Use the official Fly CLI and sign into the intended account yourself. Confirm billing and the selected region’s quote.
-2. Use the existing Fly app `russian-practice`; `fly.toml` already names it and pins the primary region to `yyz`.
-3. Confirm that the signed-in account can access the existing app with `fly status --app russian-practice`. Do not create a duplicate app.
-4. Deploy one machine only: `fly deploy --app russian-practice --primary-region yyz --regions yyz --remote-only`. Do not allocate a dedicated IPv4; shared IPv4/IPv6 is sufficient.
-5. If a clearly transient deploy error occurs, retry once. Otherwise retain this source and inspect the error instead of repeated provisioning.
-6. Check `fly status`, `fly checks list` and the public HTTPS app URL. Confirm the machine is in `yyz`, is 256MB, there is only one machine and no volume, and it stops after a traffic-free period. Opening the app should wake it again.
-7. On the intended phone, test install, key-entry/forget, Say/Say slowly, denied microphone, a short recording, Validate and Next/Cancel. Real Azure speech calls may incur charges and must be initiated by the account owner.
-8. Keep the old Sites deployment until this migration is verified. Do not delete it as part of this setup.
-
-The repository contains no deployment credential or GitHub Actions token. The app is deployed at <https://russian-practice.fly.dev> on one machine in `yyz`.
+There are **no volumes, Fly secrets, keepalive jobs or always-on machines**, and no server-side configuration: each user enters their own Azure key in the browser. Don't add an external uptime ping, since it would keep waking the machine.
 
 ## Hosting estimate
 
@@ -131,3 +132,7 @@ Other material keeps its own license:
 - **Dictionary data** (`public/dictionary*`, `lib/dictionary-data.mjs`) is adapted from English Wiktionary via Kaikki.org/Wiktextract under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Attribution and provenance are in `public/dictionary-attribution.json`.
 - **UI components** derived from shadcn/ui are MIT-licensed. See [vendor/shadcn-tailwind-4.13.0.LICENSE.md](vendor/shadcn-tailwind-4.13.0.LICENSE.md).
 - **Speech** is generated by Microsoft Azure under your own Azure account and Microsoft's terms.
+
+## Security
+
+Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
