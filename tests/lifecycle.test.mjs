@@ -21,6 +21,35 @@ async function click(name){const b=button(name);assert.ok(b,'missing '+name);awa
 test('microphone denied gives retry guidance and no Validate',async()=>{const app=await mount();await click('Listen');assert.match(document.body.textContent,/permission was denied/);assert.equal(button('Validate').disabled,true);await app.close();});
 test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await click('Listen');await click('Next word ');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(button('Validate').disabled,true);assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next word ');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});
+test('blocked autoplay can replay prepared speech without another Azure request',async()=>{
+ let plays=0,requests=0,audio;
+ class AudioMock{constructor(){audio=this;}play(){return ++plays===1?Promise.reject(new DOMException('blocked','NotAllowedError')):Promise.resolve();}pause(){}}
+ const app=await mount({Audio:AudioMock});
+ globalThis.fetch=async()=>{requests++;return new Response(new Uint8Array([1,2,3]));};
+ await click('Say');assert.match(document.body.textContent,/Audio is ready/);
+ await click('Play audio');assert.equal(plays,2);assert.equal(requests,1);assert.match(document.body.textContent,/Listen to the word/);
+ await act(async()=>audio.onended());assert.equal(button('Play audio'),undefined);
+ await app.close();
+});
+test('Next discards speech awaiting a playback gesture',async()=>{
+ let paused=0;
+ class AudioMock{play(){return Promise.reject(new DOMException('blocked','NotAllowedError'));}pause(){paused++;}}
+ const app=await mount({Audio:AudioMock});
+ globalThis.fetch=async()=>new Response(new Uint8Array([1,2,3]));
+ await click('Say');assert.ok(button('Play audio'));
+ globalThis.fetch=async()=>Response.json(words[0]);await click('Next word ');
+ assert.equal(button('Play audio'),undefined);assert.equal(paused,1);
+ await app.close();
+});
+test('playback status waits for the browser and ignores late completion after Next',async()=>{
+ const started=deferred();
+ class AudioMock{play(){return started.promise;}pause(){}}
+ const app=await mount({Audio:AudioMock});globalThis.fetch=async()=>new Response(new Uint8Array([1,2,3]));
+ await click('Say');assert.match(document.body.textContent,/Starting audio/);assert.doesNotMatch(document.body.textContent,/Listen to the word/);
+ globalThis.fetch=async()=>Response.json(words[0]);await click('Next word ');
+ await act(async()=>started.resolve());assert.doesNotMatch(document.body.textContent,/Listen to the word/);
+ await app.close();
+});
 test('record Validate then Next discards stale score, all tracks stop',async()=>{let worklet,stopped=0;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
 const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});await click('Listen');await act(async()=>worklet.port.onmessage({data:new Float32Array(48000).fill(.1)}));const d=deferred();globalThis.fetch=()=>d.promise;await click('Validate');assert.equal(stopped,1);await click('Next word ');await act(async()=>d.resolve(Response.json({kind:'scored',accuracy:99})));await flush();assert.doesNotMatch(document.body.textContent,/99/);assert.equal(button('Validate').disabled,true);await app.close();});
 
