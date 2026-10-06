@@ -1,4 +1,4 @@
-# One auto-stopping machine in Toronto; always deploy to yyz.
+# Two auto-stopping machines in Toronto; always deploy to yyz.
 app = "russian-practice"
 primary_region = "yyz"
 kill_signal = "SIGQUIT"

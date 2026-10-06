@@ -82,16 +82,16 @@ The website and this repository are public and contain no credentials. Client-si
 
 ## Deploy your own copy
 
-The app is a static site, so any static host works. The repository includes a Dockerfile (unprivileged nginx on port 8080) and a `fly.toml` for [Fly.io](https://fly.io). The official instance runs as the Fly app `russian-practice` on one shared-CPU 256MB machine in Toronto (`yyz`).
+The app is a static site, so any static host works. The repository includes a Dockerfile (unprivileged nginx on port 8080) and a `fly.toml` for [Fly.io](https://fly.io). The official instance runs as the Fly app `russian-practice` on two shared-CPU 256MB machines in Toronto (`yyz`), so deploys roll over without downtime and one machine keeps serving if the other's host fails.
 
 To run your own on Fly:
 
 1. Install the Fly CLI and sign in with `fly auth login`.
 2. Create an app with your own name, for example `fly apps create my-russian-practice`, and set `app` (and, if you like, `primary_region`) in `fly.toml`.
-3. Deploy one machine: `fly deploy --app my-russian-practice --ha=false`. A shared IPv4/IPv6 address is enough; you don't need a dedicated IPv4.
+3. Deploy: `fly deploy --app my-russian-practice`. Fly creates two machines by default; add `--ha=false` for one if you don't need zero-downtime deploys. A shared IPv4/IPv6 address is enough; you don't need a dedicated IPv4.
 4. Open the app's HTTPS URL, set up your Azure key and try Say and Tap to Speak.
 
-`fly.toml` lets the machine stop when idle and start on the next request:
+`fly.toml` lets machines stop when idle and start on the next request, so a second machine mostly costs its stopped storage:
 
 ```toml
 auto_stop_machines = "stop"
@@ -103,7 +103,7 @@ There are **no volumes, Fly secrets, keepalive jobs or always-on machines**, and
 
 ## Hosting estimate
 
-Fly’s [October 1, 2026 pricing update](https://fly.io/pricing-update/) lists the default-region shared-CPU 256MB machine at $0.003/hour, or $2.19 for 730 active hours. Thirty active hours would be about $0.09 of compute. Stopped root filesystem storage is separately $0.15/GB-month; North America/Europe egress is $0.02/GB. Actual region, image size, traffic, taxes and account terms affect the bill. There is no promised free tier or hard monthly cap. Azure Speech usage is separate.
+Fly’s [October 1, 2026 pricing update](https://fly.io/pricing-update/) lists the default-region shared-CPU 256MB machine at $0.003/hour, or $2.19 for 730 active hours. Thirty active hours would be about $0.09 of compute; with auto-stop, light traffic usually wakes only one of the two machines. Stopped root filesystem storage is separately $0.15/GB-month; North America/Europe egress is $0.02/GB. Actual region, image size, traffic, taxes and account terms affect the bill. There is no promised free tier or hard monthly cap. Azure Speech usage is separate.
 
 ## Dictionary
 
