@@ -7,3 +7,16 @@ test('reject silence, malformed and oversized audio',()=>{assert.throws(()=>vali
 test('safe score normalization supports REST and SDK',()=>{for(const nested of [false,true]){let scores={AccuracyScore:88.2};let best={Confidence:.8,...(nested?{PronunciationAssessment:scores}:scores),Words:[]};assert.equal(assessmentResult({RecognitionStatus:'Success',NBest:[best]}).accuracy,88);}for(const n of [NaN,Infinity,-3,101,'90',undefined])assert.equal(assessmentResult({RecognitionStatus:'Success',NBest:[{Confidence:.8,AccuracyScore:n}]}).kind,'uncertain');assert.equal(assessmentResult({RecognitionStatus:'Success',NBest:[{Confidence:.2,AccuracyScore:90}]}).kind,'uncertain');});
 test('TTS only supported voice and unchanged pitch',()=>{assert.match(ssml(words[0],true,'Svetlana'),/rate="-50%"/);assert.doesNotMatch(ssml(words[0],true,'Svetlana'),/pitch=/);assert.throws(()=>ssml(words[0],false,'evil'));});
 test('read bounds rejects oversize bodies',async()=>{await assert.rejects(()=>readBounded(new Request('https://test',{method:'POST',body:'123456'}),5));});
+test('alphabet has the 33 letters in standard order with Azure-supported sounds',async()=>{
+ const {alphabet}=await import('../lib/alphabet.mjs');
+ assert.equal(alphabet.map(l=>l.lower).join(''),'абвгдеёжзийклмнопрстуфхцчшщъыьэюя');
+ assert.ok(alphabet.every(l=>l.upper===l.lower.toUpperCase()));
+ const allowed=new Set('aʌəɛiɪɨɔupbtdkgxfvszʂʐ͡ɕmnlrjʲˈˌː.');
+ for(const l of alphabet)for(const s of [l.sound,l.unstressed].filter(Boolean))assert.ok(s.say===''||l.kind==='vowel'||s.say),assert.ok([...s.say].every(c=>allowed.has(c)),`${l.lower}: ${s.say}`);
+ assert.deepEqual(alphabet.filter(l=>!l.sound).map(l=>l.lower),['ъ','ь']);
+ assert.equal(alphabet.filter(l=>l.kind==='vowel').length,10);
+ assert.match(ssml({text:'б',ipa:alphabet[1].sound.say},false,'Svetlana'),/<phoneme alphabet="ipa" ph="bə">б<\/phoneme>/);
+ const i=alphabet.find(l=>l.lower==='и');assert.equal(i.sound.say,'');
+ assert.match(ssml({text:'и',ipa:i.sound.say},false,'Svetlana'),/<break time="250ms"\/>и<\/prosody>/,'plain letter, no phoneme override');
+ assert.match(ssml(words[0],false,'Svetlana'),/<break time="250ms"\/><phoneme/,'short lead-in so Android does not clip the start');
+});

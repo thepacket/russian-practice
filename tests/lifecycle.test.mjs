@@ -90,6 +90,26 @@ test('explicit Forget removes the saved key and approval and the next load reque
  assert.equal(checks[1].getAttribute('aria-checked'),'false');assert.equal(checks[2].getAttribute('aria-checked'),'false');
  assert.doesNotMatch(document.body.textContent,/Saved key restored/);await second.close();
 });
+test('Alphabet plays a tapped letter, reuses it from memory, and plays the unstressed vowel',async()=>{
+ const ssml=[];class AudioMock{play(){return Promise.resolve();}pause(){}}
+ const app=await mount({Audio:AudioMock});let requests=0;globalThis.fetch=async()=>{requests++;return new Response(new Uint8Array([1,2,3]));};
+ await click('Alphabet');assert.equal(document.querySelectorAll('.alphabet li').length,33);
+ const letter=label=>[...document.querySelectorAll('.alphabet button')].find(b=>b.getAttribute('aria-label').startsWith(label));
+ const tap=async b=>{await act(async()=>b.dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();};
+ await tap(letter('Б б'));assert.equal(requests,1);assert.match(document.querySelector('.alphabet-status').textContent,/Listen/);
+ await tap(letter('Б б'));assert.equal(requests,1,'repeat tap is served from memory');
+ await tap(letter('о unstressed'));assert.equal(requests,2);
+ assert.equal(letter('Ъ ъ'),undefined,'hard sign has no sound to play');
+ await app.close();
+});
+test('Alphabet letter before setup opens Azure setup instead',async()=>{
+ const storage=memoryStorage();const app=await mount({},[],{storage,autoSetup:false});
+ await click('Alphabet');
+ const b=[...document.querySelectorAll('.alphabet button')].find(x=>x.getAttribute('aria-label').startsWith('А а'));
+ await act(async()=>b.dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
+ assert.equal(document.querySelector('.alphabet'),null);assert.match(document.body.textContent,/Azure Speech setup/);
+ await app.close();
+});
 test('microphone denied gives retry guidance and no Validate',async()=>{const app=await mount();await click('Listen');assert.match(document.body.textContent,/permission was denied/);assert.equal(button('Validate').disabled,true);await app.close();});
 test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await click('Listen');await click('Next word ');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(button('Validate').disabled,true);assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next word ');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});

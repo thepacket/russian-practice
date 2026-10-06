@@ -23,7 +23,7 @@ Source migrated from the verified Sites source commit `6dd502cb5ff27b9e56770d595
 6. TTS words and submitted audio go directly to Microsoft’s fixed East US Speech endpoints. SDK telemetry is disabled. The app has no analytics, payload logging, audio storage or score storage. Azure’s own processing, billing and retention policies still apply.
 7. Forget key removes the app’s remembered key and approval and clears memory. Rotate the key in Azure for revocation. Requests already submitted can still finish after cancellation.
 
-Local browser guardrails allow 10 speech requests/minute and 60/day (UTC). These are convenience safeguards, **not a billing cap**. They can be reset, bypassed or exceeded across tabs/devices. Use Azure resource quotas and billing controls for account-level protection. Failures/retries count locally; provider billing is determined by Azure.
+The app does not limit how many speech requests you make. Use Azure resource quotas and billing controls for account-level protection; provider billing is determined by Azure.
 
 The static website is publicly readable when deployed. A private GitHub repository protects repository access; it does not make delivered HTML, JS or dictionary files private. Client-side Azure authentication controls access to each user’s Azure resource, not access to the website.
 
