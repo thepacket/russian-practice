@@ -12,7 +12,12 @@ test('alphabet has the 33 letters in standard order with Azure-supported sounds'
  assert.equal(alphabet.map(l=>l.lower).join(''),'абвгдеёжзийклмнопрстуфхцчшщъыьэюя');
  assert.ok(alphabet.every(l=>l.upper===l.lower.toUpperCase()));
  const allowed=new Set('aʌəɛiɪɨɔupbtdkgxfvszʂʐ͡ɕmnlrjʲˈˌː.');
- for(const l of alphabet)for(const s of [l.sound,l.unstressed].filter(Boolean))assert.ok(s.say===''||l.kind==='vowel'||s.say),assert.ok([...s.say].every(c=>allowed.has(c)),`${l.lower}: ${s.say}`);
+ for(const l of alphabet)if(l.sound)assert.ok([...l.sound.say].every(c=>allowed.has(c)),`${l.lower}: ${l.sound.say}`);
+ for(const l of alphabet.filter(l=>l.unstressed)){const {example,text}=l.unstressed;
+  assert.equal(example.split('\u0301').length,2,`${example} has one stress mark`);assert.equal(text,example.replace('\u0301',''));
+  const stressedLetter=example[example.indexOf('\u0301')-1];const unstressedCopies=[...text].filter(c=>c===l.lower).length-(stressedLetter===l.lower?1:0);
+  assert.ok(unstressedCopies>=1,`${example} has an unstressed ${l.lower}`);}
+ assert.equal(alphabet.find(l=>l.lower==='ё').unstressed,null);
  assert.deepEqual(alphabet.filter(l=>!l.sound).map(l=>l.lower),['ъ','ь']);
  assert.equal(alphabet.filter(l=>l.kind==='vowel').length,10);
  assert.match(ssml({text:'б',ipa:alphabet[1].sound.say},false,'Svetlana'),/<phoneme alphabet="ipa" ph="bə">б<\/phoneme>/);
