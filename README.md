@@ -4,11 +4,11 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 
 - **Random dictionary words**: 40,860 spellings with stress marks, English meanings and Wiktionary links. Choose a maximum word length from 1 to 32 letters.
 - **Say / Say slowly**: hear the word from an Azure neural voice (Svetlana or Dmitry), at normal or half speed.
-- **Listen / Validate**: record up to eight seconds and get an approximate Azure pronunciation score.
+- **Hold to speak**: hold the button while you say the word (up to eight seconds); release it to get an approximate Azure pronunciation score.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 <p align="center">
-  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word аргама́к with Say, Say slowly, Listen and Validate buttons" width="300">
+  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word бе́личий with Say, Say slowly and Hold to speak buttons" width="300">
   <img src="docs/screenshots/alphabet.jpg" alt="Alphabet panel showing letters with names, IPA sounds and unstressed example words" width="300">
 </p>
 
@@ -48,7 +48,7 @@ Test suites (`npm test`):
 - `tests/dictionary.test.mjs`: full dictionary counts, licensing/provenance, stress and selection coverage
 - `tests/client.test.mjs`: direct token destination/header, key and approval storage, SDK cleanup, cancellation, Azure error details, no local request limit and Fly config
 - `tests/full-dictionary.test.mjs`: one-download coverage, offline selection, worker cancellation, timeouts, retry, corrupt cache, quota failure and content-version replacement
-- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next/Cancel, failed dictionary selection and rapid length changes
+- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, hold-to-speak (quick taps, early release, 8-second stop, live-mic detection, Bluetooth hint), mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next/Cancel, failed dictionary selection and rapid length changes
 
 ## Architecture
 
@@ -62,7 +62,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 - Alphabet panel: the 33 letters in standard order with names and IPA; tapping a letter plays its sound (consonants with a short neutral vowel, as in "buh"). Vowels also show their unstressed sound, played inside a common example word, because Azure voices an isolated reduced vowel as a full one
 - Generated speech is kept in memory for the session, so replaying a word or letter does not call Azure again
 - When Azure refuses a request, the app shows Azure's own reason (query strings stripped) instead of a generic error
-- Up to eight seconds of microphone audio; Validate submits the recording, Next/Cancel discard it
+- Hold to speak records up to eight seconds of microphone audio ("Speak now" appears once the mic is actually live, which matters for Bluetooth headsets); releasing trims the silence and submits it. A quick tap sends nothing, and Next/Cancel discard the clip. Browser noise suppression is off because it distorts speech for recognition
 - Conservative Azure pronunciation estimates, not a Russian stress or individual-phoneme diagnosis
 - Installable mobile PWA with a dictionary-only local cache; no persistent audio/score cache or offline speech library
 
@@ -89,7 +89,7 @@ To run your own on Fly:
 1. Install the Fly CLI and sign in with `fly auth login`.
 2. Create an app with your own name, for example `fly apps create my-russian-practice`, and set `app` (and, if you like, `primary_region`) in `fly.toml`.
 3. Deploy one machine: `fly deploy --app my-russian-practice --ha=false`. A shared IPv4/IPv6 address is enough; you don't need a dedicated IPv4.
-4. Open the app's HTTPS URL, set up your Azure key and try Say, Listen and Validate.
+4. Open the app's HTTPS URL, set up your Azure key and try Say and Hold to speak.
 
 `fly.toml` lets the machine stop when idle and start on the next request:
 

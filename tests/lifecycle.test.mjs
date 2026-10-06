@@ -22,6 +22,9 @@ await act(async()=>document.querySelector('form').dispatchEvent(new window.Event
 }
 return {dom,media,storage,async close(){await act(async()=>root.unmount());dom.window.close();}};}
 const button=name=>[...document.querySelectorAll('button')].find(b=>b.textContent===name);
+const speak=()=>document.querySelector('button.speak');
+const hold=async()=>{const b=speak();assert.ok(b,'missing speak button');await act(async()=>b.dispatchEvent(new window.Event('pointerdown',{bubbles:true})));await flush();};
+const letGo=async()=>{await act(async()=>speak().dispatchEvent(new window.Event('pointerup',{bubbles:true})));await flush();};
 async function click(name){const b=button(name);assert.ok(b,'missing '+name);await act(async()=>b.dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();}
 test('legacy remembered key without approval asks once, then reloads ready without re-entry',async()=>{
  const storage=memoryStorage(),dummy='b'.repeat(32);
@@ -110,8 +113,8 @@ test('Alphabet letter before setup opens Azure setup instead',async()=>{
  assert.equal(document.querySelector('.alphabet'),null);assert.match(document.body.textContent,/Azure Speech setup/);
  await app.close();
 });
-test('microphone denied gives retry guidance and no Validate',async()=>{const app=await mount();await click('Listen');assert.match(document.body.textContent,/permission was denied/);assert.equal(button('Validate').disabled,true);await app.close();});
-test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await click('Listen');await click('Next word ');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(button('Validate').disabled,true);assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
+test('microphone denied gives retry guidance and nothing to check',async()=>{const app=await mount();let requests=0;await hold();globalThis.fetch=async()=>{requests++;return Response.json({});};await letGo();assert.match(document.body.textContent,/permission was denied/);assert.equal(speak().textContent,'Hold to speak');assert.equal(requests,0);await app.close();});
+test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await hold();await click('Next word ');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(speak().textContent,'Hold to speak');assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next word ');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});
 test('blocked autoplay can replay prepared speech without another Azure request',async()=>{
  let plays=0,requests=0,audio;
@@ -142,8 +145,48 @@ test('playback status waits for the browser and ignores late completion after Ne
  await act(async()=>started.resolve());assert.doesNotMatch(document.body.textContent,/Listen to the word/);
  await app.close();
 });
+test('recording asks for unprocessed audio, says Speak now only once sound arrives, and explains Bluetooth mics',async()=>{
+ let worklet,constraints;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
+ const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});
+ app.media.getUserMedia=async c=>{constraints=c;return {getTracks:()=>[{stop(){}}],getAudioTracks:()=>[{label:'AirPods Pro'}]};};
+ await hold();
+ assert.equal(constraints.audio.noiseSuppression,false);assert.equal(constraints.audio.echoCancellation,false);assert.equal(constraints.audio.autoGainControl,true);
+ assert.match(document.body.textContent,/Starting microphone/);
+ await act(async()=>worklet.port.onmessage({data:new Float32Array(24000)}));
+ assert.match(document.body.textContent,/Starting microphone/,'silence while the headset switches does not count as live');
+ await act(async()=>worklet.port.onmessage({data:new Float32Array(4800).fill(.05)}));
+ await act(async()=>worklet.port.onmessage({data:new Float32Array(9600).fill(.1)}));
+ assert.match(document.body.textContent,/Speak now/);
+ globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:61,lowConfidence:true});
+ await letGo();
+ assert.match(document.body.textContent,/61/);assert.match(document.body.textContent,/Bluetooth mics record at phone-call quality/);
+ await app.close();
+});
+test('a quick tap or a release before the mic is ready sends nothing and explains how to hold',async()=>{
+ let worklet,stopped=0,requests=0;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
+ const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});
+ const d=deferred();app.media.getUserMedia=()=>d.promise;
+ await hold();assert.equal(speak().textContent,'Release to check');await letGo();
+ await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();
+ assert.equal(stopped,1);assert.match(document.body.textContent,/Hold the button while you say the word/);
+ app.media.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});globalThis.fetch=async()=>{requests++;return Response.json({kind:'scored',accuracy:80});};
+ await hold();await act(async()=>worklet.port.onmessage({data:new Float32Array(4800).fill(.1)}));await letGo();
+ assert.equal(requests,0,'0.1s tap is not sent');assert.match(document.body.textContent,/Hold the button while you say the word/);
+ await hold();await act(async()=>worklet.port.onmessage({data:new Float32Array(48000*8).fill(.1)}));
+ assert.match(document.body.textContent,/Release to check your word/,'stops at 8 seconds while still held');
+ await letGo();assert.equal(requests,1);assert.match(document.body.textContent,/80/);
+ await app.close();
+});
+test('hiding the app stops only an active recording and stays quiet otherwise',async()=>{
+ let worklet,stopped=0;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
+ const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});const hide=async v=>{Object.defineProperty(document,'hidden',{value:v,configurable:true});await act(async()=>document.dispatchEvent(new window.Event('visibilitychange')));await flush();};
+ await hide(true);await hide(false);assert.doesNotMatch(document.body.textContent,/stopped while the app was hidden/);
+ app.media.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});await hold();await act(async()=>worklet.port.onmessage({data:new Float32Array(24000).fill(.1)}));
+ await hide(true);assert.equal(stopped,1);assert.match(document.body.textContent,/stopped while the app was hidden/);await hide(false);
+ await app.close();
+});
 test('record Validate then Next discards stale score, all tracks stop',async()=>{let worklet,stopped=0;class Context{sampleRate=48000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
-const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});await click('Listen');await act(async()=>worklet.port.onmessage({data:new Float32Array(48000).fill(.1)}));const d=deferred();globalThis.fetch=()=>d.promise;await click('Validate');assert.equal(stopped,1);await click('Next word ');await act(async()=>d.resolve(Response.json({kind:'scored',accuracy:99})));await flush();assert.doesNotMatch(document.body.textContent,/99/);assert.equal(button('Validate').disabled,true);await app.close();});
+const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop:()=>stopped++}]});await hold();await act(async()=>worklet.port.onmessage({data:new Float32Array(48000).fill(.1)}));const d=deferred();globalThis.fetch=()=>d.promise;await letGo();assert.equal(stopped,1);await click('Next word ');await act(async()=>d.resolve(Response.json({kind:'scored',accuracy:99})));await flush();assert.doesNotMatch(document.body.textContent,/99/);assert.equal(speak().textContent,'Hold to speak');await app.close();});
 
 test('WebMCP read tool mirrors visible word and rejects arguments',async()=>{const tools=[];const app=await mount({},tools);let tool=tools.at(-1);assert.equal(tool.name,'read_practice_word');assert.equal(tool.annotations.readOnlyHint,true);assert.equal(tool.execute({}).word,document.querySelector('h1').textContent);assert.throws(()=>tool.execute({record:true}));await click('Next word ');tool=tools.at(-1);assert.equal(tool.execute({}).word,document.querySelector('h1').textContent);await app.close();});
 
