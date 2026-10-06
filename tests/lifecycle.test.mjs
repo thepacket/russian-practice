@@ -1,9 +1,11 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {build} from 'esbuild';
 import {words,pickWord} from '../lib/words.mjs';
+import {readFile} from 'node:fs/promises';
+import {KEY_STORAGE,saveRememberedKey} from '../lib/client-speech.mjs';
 const require=createRequire(import.meta.url);const {JSDOM}=require('jsdom');
 await build({plugins:[{name:'mock-services',setup(b){
  b.onLoad({filter:/client-dictionary\.mjs$/},()=>({contents:`export function subscribeDictionaryStatus(){return ()=>{};}export async function chooseWord(max,previous,signal){const r=await fetch('/api/word?max='+max+'&previous='+previous.id,{signal});if(!r.ok)throw Error('Dictionary unavailable');return r.json();}`,loader:'js'}));
- b.onLoad({filter:/client-speech\.mjs$/},()=>({contents:`export const readRememberedKey=()=> 'a'.repeat(32);export const saveRememberedKey=()=>{};export const validKey=()=>true;export const createSpeechClient=()=>({say:async o=>(await fetch('/api/practice',{signal:o.signal})).blob(),assess:async o=>(await fetch('/api/practice',{signal:o.signal})).json()});`,loader:'js'}));
+ b.onLoad({filter:/client-speech\.mjs$/},async({path})=>({contents:(await readFile(path,'utf8')).replace(/export function createSpeechClient[\s\S]*$/,`export const createSpeechClient=()=>({say:async o=>(await fetch('/api/practice',{signal:o.signal})).blob(),assess:async o=>(await fetch('/api/practice',{signal:o.signal})).json()});`),loader:'js'}));
 }}],entryPoints:['app/practice.tsx'],outfile:'tests/.practice-test.cjs',bundle:true,platform:'node',format:'cjs',jsx:'automatic',external:['react','react-dom','react-dom/*'],alias:{'@':process.cwd()},logLevel:'silent'});
 const bootstrap=new JSDOM('<!doctype html><body/>');Object.defineProperty(globalThis,'window',{value:bootstrap.window,configurable:true,writable:true});Object.defineProperty(globalThis,'document',{value:bootstrap.window.document,configurable:true,writable:true});
 const {default:Practice}=require('./.practice-test.cjs');const React=require('react');const {createRoot}=require('react-dom/client');
@@ -11,13 +13,48 @@ globalThis.ResizeObserver=class{observe(){}unobserve(){}disconnect(){}};
 const {act}=React;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 const flush=async()=>{await act(async()=>{await new Promise(r=>setTimeout(r,0))})};
 function deferred(){let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject};}
-async function mount(overrides={},tools=[]){const dom=new JSDOM('<div id="root"></div>',{url:'https://russian-word-practice.apacket.chatgpt.site',pretendToBeVisual:true});for(const p of ['window','document','navigator','HTMLElement','HTMLFormElement','HTMLInputElement','HTMLSelectElement','DocumentFragment','Element','Node','MutationObserver','Event','CustomEvent','getComputedStyle','requestAnimationFrame','cancelAnimationFrame','HTMLButtonElement','NodeFilter'])Object.defineProperty(globalThis,p,{value:dom.window[p],configurable:true,writable:true});let media={getUserMedia:async()=>{throw Object.assign(new Error('denied'),{name:'NotAllowedError'})}};Object.defineProperty(navigator,'mediaDevices',{value:media,configurable:true});document.modelContext={registerTool(tool,opts){tools.push(tool);}};globalThis.fetch=async(url)=>{if(String(url).startsWith('/api/word')){const u=new URL(url,'https://test');return Response.json(pickWord(Number(u.searchParams.get('max')),Number(u.searchParams.get('previous'))));}return Response.json({configured:true,enabled:true,setupReady:true});};Object.assign(globalThis,overrides);let root=createRoot(document.getElementById('root'));await act(async()=>root.render(React.createElement(Practice)));await flush();
+function memoryStorage(){const data=new Map();const writes=[];return{data,writes,getItem:k=>data.get(k)??null,setItem(k,v){writes.push(['set',k]);data.set(k,String(v));},removeItem(k){writes.push(['remove',k]);data.delete(k);}};}
+async function mount(overrides={},tools=[],options={}){const dom=new JSDOM('<div id="root"></div>',{url:'https://russian-word-practice.apacket.chatgpt.site',pretendToBeVisual:true});for(const p of ['window','document','navigator','HTMLElement','HTMLFormElement','HTMLInputElement','HTMLSelectElement','DocumentFragment','Element','Node','MutationObserver','Event','CustomEvent','getComputedStyle','requestAnimationFrame','cancelAnimationFrame','HTMLButtonElement','NodeFilter'])Object.defineProperty(globalThis,p,{value:dom.window[p],configurable:true,writable:true});const storage=options.storage??memoryStorage();if(!options.storage)saveRememberedKey(storage,'a'.repeat(32),true);Object.defineProperty(window,'localStorage',{value:storage,configurable:true});let media={getUserMedia:async()=>{throw Object.assign(new Error('denied'),{name:'NotAllowedError'})}};Object.defineProperty(navigator,'mediaDevices',{value:media,configurable:true});document.modelContext={registerTool(tool,opts){tools.push(tool);}};globalThis.fetch=async(url)=>{if(String(url).startsWith('/api/word')){const u=new URL(url,'https://test');return Response.json(pickWord(Number(u.searchParams.get('max')),Number(u.searchParams.get('previous'))));}return Response.json({configured:true,enabled:true,setupReady:true});};Object.assign(globalThis,overrides);let root=createRoot(document.getElementById('root'));await act(async()=>root.render(options.strict?React.createElement(React.StrictMode,null,React.createElement(Practice)):React.createElement(Practice)));await flush();
+if(options.autoSetup!==false){
 await act(async()=>document.querySelector('[aria-label="Open Azure setup"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
 const checks=document.querySelectorAll('[role="checkbox"]');for(const i of [1,2])await act(async()=>checks[i].dispatchEvent(new window.MouseEvent('click',{bubbles:true})));
 await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
-return {dom,media,async close(){await act(async()=>root.unmount());dom.window.close();}};}
+}
+return {dom,media,storage,async close(){await act(async()=>root.unmount());dom.window.close();}};}
 const button=name=>[...document.querySelectorAll('button')].find(b=>b.textContent===name);
 async function click(name){const b=button(name);assert.ok(b,'missing '+name);await act(async()=>b.dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();}
+test('remembered key survives reload/update and StrictMode restoration without re-entry or startup writes',async()=>{
+ const storage=memoryStorage(),dummy='b'.repeat(32);
+ saveRememberedKey(storage,dummy,true);storage.writes.length=0;
+ for(let reload=0;reload<2;reload++){
+  const app=await mount({},[],{storage,autoSetup:false,strict:true});
+  assert.equal(storage.getItem(KEY_STORAGE),dummy);assert.deepEqual(storage.writes,[]);
+  assert.match(document.body.textContent,/Saved key restored/);
+  await click('Say');
+  assert.match(document.body.textContent,/You do not need to enter your key again/);
+  const input=document.querySelector('input[type="password"]');
+  assert.equal(input.value,'');assert.equal(input.required,false);
+  const checks=document.querySelectorAll('[role="checkbox"]');
+  assert.equal(checks[0].getAttribute('aria-checked'),'true');
+  assert.equal(checks[1].getAttribute('aria-checked'),'false');
+  assert.equal(checks[2].getAttribute('aria-checked'),'false');
+  for(const i of [1,2])await act(async()=>checks[i].dispatchEvent(new window.MouseEvent('click',{bubbles:true})));
+  await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));await flush();
+  assert.equal(storage.getItem(KEY_STORAGE),dummy);
+  assert.doesNotMatch(document.body.textContent,/Enter a valid Azure Speech key/);
+  await app.close();assert.equal(storage.getItem(KEY_STORAGE),dummy);
+  assert.ok(storage.writes.every(([action])=>action==='set'));storage.writes.length=0;
+ }
+});
+test('explicit Forget removes the saved key and the next load requests a key',async()=>{
+ const storage=memoryStorage();saveRememberedKey(storage,'c'.repeat(32),true);
+ const first=await mount({},[],{storage,autoSetup:false});await click('Say');await click('Forget key on this device');
+ assert.equal(storage.getItem(KEY_STORAGE),null);await first.close();
+ const second=await mount({},[],{storage,autoSetup:false});await click('Say');
+ assert.equal(document.querySelector('input[type="password"]').required,true);
+ assert.equal(document.querySelector('[role="checkbox"]').getAttribute('aria-checked'),'false');
+ assert.doesNotMatch(document.body.textContent,/Saved key restored/);await second.close();
+});
 test('microphone denied gives retry guidance and no Validate',async()=>{const app=await mount();await click('Listen');assert.match(document.body.textContent,/permission was denied/);assert.equal(button('Validate').disabled,true);await app.close();});
 test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await click('Listen');await click('Next word ');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(button('Validate').disabled,true);assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next word ');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});
