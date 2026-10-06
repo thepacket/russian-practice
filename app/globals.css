@@ -14,7 +14,7 @@
 .source-note{margin-top:auto;padding-top:12px}
 
 /* Accent palette: each colour marks a function, on top of the navy base. */
-:root{--say:#4fd1c5;--slow:#b39bff;--speak:#ff9f5a;--next:#6cb6ff;--good:#6fdc8c;--fair:#f6c453;--low:#ff7a7a;--vowel:#4fd1c5;--consonant:#6cb6ff}
+:root{--say:#4fd1c5;--slow:#b39bff;--speak:#ff9f5a;--next:#6cb6ff;--good:#6fdc8c;--fair:#f6c453;--low:#ff7a7a;--vowel:#f6c453;--consonant:#6cb6ff}
 .controls .say svg{color:var(--say)}
 .controls .slow svg{color:var(--slow)}
 .controls .speak svg{color:var(--speak)}
