@@ -170,18 +170,22 @@ test('recording asks the browser for 16 kHz audio, drops processing for a chosen
  globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:58,words:[{word:'мама',accuracy:58,error:'None',sounds:[{sound:'m',accuracy:92},{sound:'a',accuracy:35},{sound:'m',accuracy:88},{sound:'ə',accuracy:66}]}]});
  await tap();assert.deepEqual(options,{sampleRate:16000});assert.equal(constraints.audio.noiseSuppression,false);assert.equal(constraints.audio.echoCancellation,false);
  await act(async()=>worklet.port.onmessage({data:new Float32Array(16000).fill(.1)}));await tap();
- assert.match(document.body.textContent,/58/);assert.match(document.body.textContent,/Close\. Work on the sounds marked below/);
+ assert.match(document.body.textContent,/70/,'headline is the average of the sounds (92+35+88+66)/4');assert.match(document.body.textContent,/Average of 4 sounds · Azure word score 58/);assert.match(document.body.textContent,/Good\. Azure is strict with Russian/);
  const chips=[...document.querySelectorAll('.sounds li')];assert.equal(chips.length,4);assert.equal(chips[1].className,'low');assert.match(chips[1].textContent,/a.*35/);
  await app.close();
  storage.removeItem('rwp.mic.v1');const auto=await mount({AudioContext:Context,AudioWorkletNode:Worklet},[],{storage});
  auto.media.getUserMedia=async c=>{constraints=c;return {getTracks:()=>[{stop(){}}]};};await tap();assert.equal(constraints.audio.noiseSuppression,true,'Automatic keeps browser processing');await tap();await auto.close();
 });
-test('per-sound chips are hidden when Azure returns scores without symbols',async()=>{
+test('unnamed per-sound scores are shown against the word’s letters',async()=>{
  let worklet;class Context{sampleRate=16000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
  const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop(){}}]});
- globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:74,words:[{word:'да',accuracy:74,error:'None',sounds:[{sound:'',accuracy:80},{sound:'',accuracy:68}]}]});
+ const letters=[...document.querySelector('h1').textContent.replace(/\u0301/g,'')];
+ const scores=letters.map((_,i)=>i===1?20:80);
+ globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:90,words:[{word:letters.join(''),accuracy:90,error:'None',sounds:scores.map(a=>({sound:'',accuracy:a}))}]});
  await tap();await act(async()=>worklet.port.onmessage({data:new Float32Array(16000).fill(.1)}));await tap();
- assert.match(document.body.textContent,/74/);assert.equal(document.querySelector('.sounds'),null);
+ const avg=Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+ assert.match(document.querySelector('.score strong').textContent,new RegExp('^'+avg),'headline is the average of the sounds');assert.match(document.body.textContent,/Azure word score 90/);
+ const chips=[...document.querySelectorAll('.sounds li')];assert.equal(chips.length,letters.length);assert.deepEqual(chips.map(c=>c.querySelector('.sound').textContent),letters,'labelled by the word’s letters');assert.equal(chips[1].className,'low');
  await app.close();
 });
 test('Settings shows a troubleshooting record of what was sent and what Azure replied',async()=>{
