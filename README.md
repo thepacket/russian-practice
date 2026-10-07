@@ -8,7 +8,7 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 <p align="center">
-  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word снято́й (skim, skimmed) with its stressed vowel highlighted, and the Say, Say Slowly, Tap to Speak and Next Word buttons at the bottom" width="300">
+  <img src="docs/screenshots/practice.jpg" alt="Practice screen showing the word на́ледь (icing) with its stressed vowel highlighted, a score per letter (н 100, а 100, л 100, е 24, дь 0), the overall score 65/100, and the Say, Say Slowly, Tap to Speak and Next Word buttons" width="300">
   <img src="docs/screenshots/alphabet.jpg" alt="Alphabet panel with vowels in amber and consonants in blue, showing letter names, IPA sounds and unstressed example words" width="300">
 </p>
 
