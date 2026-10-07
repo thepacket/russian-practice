@@ -184,6 +184,16 @@ test('per-sound chips are hidden when Azure returns scores without symbols',asyn
  assert.match(document.body.textContent,/74/);assert.equal(document.querySelector('.sounds'),null);
  await app.close();
 });
+test('Settings shows a troubleshooting record of what was sent and what Azure replied',async()=>{
+ let worklet;class Context{sampleRate=16000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
+ const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop(){}}],getAudioTracks:()=>[{label:'Speakerphone'}]});
+ globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:81,raw:JSON.stringify({Display:'мама',Confidence:.7,Words:[{Word:'мама'}]}),words:[]});
+ await tap();await act(async()=>worklet.port.onmessage({data:new Float32Array(16000).fill(.5)}));await tap();assert.match(document.body.textContent,/81/);
+ await act(async()=>document.querySelector('[aria-label="Open Azure setup"]').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();
+ const pre=document.querySelector('.diag pre');assert.ok(pre,'troubleshooting block present');const d=JSON.parse(pre.textContent);
+ assert.equal(d.sent.microphone,'Speakerphone');assert.equal(d.sent.sampleRate,16000);assert.ok(d.sent.clipSeconds>0.9&&d.sent.clipSeconds<=1.1,'about one second sent');assert.ok(d.sent.peakLevel>=0.49);assert.equal(d.azure.Display,'мама');
+ await app.close();
+});
 test('microphone denied gives retry guidance and nothing to check',async()=>{const app=await mount();let requests=0;globalThis.fetch=async()=>{requests++;return Response.json({});};await tap();assert.match(document.body.textContent,/permission was denied/);assert.equal(speak().textContent,'Tap to Speak');assert.equal(requests,0);await app.close();});
 test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await tap();await click('Next Word');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(speak().textContent,'Tap to Speak');assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next Word');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});
