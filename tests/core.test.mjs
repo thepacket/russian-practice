@@ -23,7 +23,8 @@ test('alphabet has the 33 letters in standard order with Azure-supported sounds'
  assert.match(ssml({text:'б',ipa:alphabet[1].sound.say},false,'Svetlana'),/<phoneme alphabet="ipa" ph="bə">б<\/phoneme>/);
  const i=alphabet.find(l=>l.lower==='и');assert.equal(i.sound.say,'');
  assert.match(ssml({text:'и',ipa:i.sound.say},false,'Svetlana'),/<break time="250ms"\/>и<\/prosody>/,'plain letter, no phoneme override');
- assert.match(ssml(words[0],false,'Svetlana'),/<break time="250ms"\/><phoneme/,'short lead-in so Android does not clip the start');
+ assert.match(ssml(words[0],false,'Svetlana'),new RegExp('<break time="250ms"/>'+words[0].stress),'short lead-in so Android does not clip the start');
+ assert.match(ssml({text:'вода',stress:'вода́',ipa:'vʌˈda'},false,'Svetlana'),/>вода́<\/prosody>/,'stress mark kept, IPA not forced');assert.doesNotMatch(ssml({text:'вода',stress:'вода́',ipa:'vʌˈda'},false,'Svetlana'),/phoneme/);
 });
 test('silence trimming keeps the spoken part with a margin',async()=>{
  const {trimSilence}=await import('../lib/audio.mjs');const rate=48000;

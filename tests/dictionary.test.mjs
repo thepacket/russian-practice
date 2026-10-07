@@ -25,7 +25,7 @@ test('homographs retain matching stress, gloss and pronunciation',()=>{
  assert.match(castle.meaning,/castle/);assert.match(lock.meaning,/lock/);assert.match(castle.ipa,/^ˈ/);assert.match(lock.ipa,/zʌˈ/);
  const water=words.find(w=>w.stress==='вода́');assert.match(water.meaning,/water/);
  assert.ok(words.some(w=>w.text.includes('ё')));
- assert.match(ssml(lock,true,'Dmitry'),/zʌˈmɔk/);
+ assert.match(ssml(lock,true,'Dmitry'),new RegExp('<break time="250ms"/>'+lock.stress+'</prosody>'),'word is spoken as stressed text, not forced IPA');assert.doesNotMatch(ssml(lock,true,'Dmitry'),/phoneme/);
 });
 test('all supported caps enforce letter counts, including accents and ё, and never immediately repeat spelling',()=>{
  assert.equal(maxWordLength,32);
