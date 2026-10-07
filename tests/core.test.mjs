@@ -34,3 +34,9 @@ test('silence trimming keeps the spoken part with a margin',async()=>{
  const quiet=new Float32Array(rate);assert.equal(trimSilence([quiet],rate)[0].length,rate,'all-quiet clip is left for the quiet check');
  assert.ok(validateWav(toWav(trimSilence([clip],rate),rate)).duration<2);
 });
+
+test('assessment keeps per-sound scores so the learner sees which sounds were low',()=>{
+ const r=assessmentResult({RecognitionStatus:'Success',NBest:[{Confidence:.9,PronunciationAssessment:{AccuracyScore:61},Words:[{Word:'мама',PronunciationAssessment:{AccuracyScore:61,ErrorType:'None'},Phonemes:[{Phoneme:'m',PronunciationAssessment:{AccuracyScore:95}},{Phoneme:'a',PronunciationAssessment:{AccuracyScore:40.4}},{Phoneme:'m',PronunciationAssessment:{AccuracyScore:'bad'}},{Phoneme:'ə',PronunciationAssessment:{AccuracyScore:72}}]}]}]});
+ assert.equal(r.accuracy,61);assert.deepEqual(r.words[0].sounds,[{sound:'m',accuracy:95},{sound:'a',accuracy:40},{sound:'m',accuracy:null},{sound:'ə',accuracy:72}]);
+ const none=assessmentResult({RecognitionStatus:'Success',NBest:[{Confidence:.9,AccuracyScore:80,Words:[{Word:'да'}]}]});assert.deepEqual(none.words[0].sounds,[]);
+});

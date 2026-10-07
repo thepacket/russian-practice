@@ -23,7 +23,8 @@
 .controls .next svg{color:var(--next)}
 .controls .speak.listening svg{color:#ffd2b0}
 h1 .stress{color:var(--fair)}
-.score.good strong{color:var(--good)}.score.fair strong{color:var(--fair)}.score.low strong{color:var(--low)}
+.result{display:flex;flex-direction:column;align-items:center;gap:10px}.result.good .score strong{color:var(--good)}.result.fair .score strong{color:var(--fair)}.result.low .score strong{color:var(--low)}
+.sounds{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:5px}.sounds li{display:flex;flex-direction:column;align-items:center;min-width:34px;padding:4px 6px;border-radius:8px;background:#172541;border:1px solid #223962;font-size:.72rem;color:#9fb3d6}.sounds .sound{font-size:.95rem;color:#e9eef3;line-height:1.1}.sounds .good{border-color:color-mix(in srgb,var(--good) 55%,transparent)}.sounds .good .pct{color:var(--good)}.sounds .fair{border-color:color-mix(in srgb,var(--fair) 55%,transparent)}.sounds .fair .pct{color:var(--fair)}.sounds .low{border-color:color-mix(in srgb,var(--low) 65%,transparent);background:color-mix(in srgb,var(--low) 12%,#172541)}.sounds .low .pct{color:var(--low)}
 .alphabet li.vowel{border-color:color-mix(in srgb,var(--vowel) 45%,transparent);background:color-mix(in srgb,var(--vowel) 9%,#1c2433)}
 .alphabet li.vowel .ipa{color:var(--vowel)}
 .alphabet li.consonant{border-color:color-mix(in srgb,var(--consonant) 30%,transparent)}
