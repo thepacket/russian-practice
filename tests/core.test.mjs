@@ -46,7 +46,14 @@ test('per-sound scores are labelled by letter, then by IPA, then by position; av
  assert.deepEqual(ipaSegments('lʲɪˈnʲɛjkə'),['lʲ','ɪ','nʲ','ɛ','j','k','ə']);assert.deepEqual(ipaSegments('t͡ɕaj'),['t͡ɕ','a','j']);assert.deepEqual(ipaSegments('ɕːi'),['ɕː','i']);
  const anon=n=>Array.from({length:n},(_,i)=>({sound:'',accuracy:i*10}));
  assert.deepEqual(labelSounds({text:'линейка',ipa:'lʲɪˈnʲɛjkə'},anon(7)).map(s=>s.label),[...'линейка'],'one sound per letter: letters');
- assert.deepEqual(labelSounds({text:'мать',ipa:'matʲ'},anon(3)).map(s=>s.label),['m','a','tʲ'],'silent ь: IPA');
+ assert.deepEqual(labelSounds({text:'мать',ipa:'matʲ'},anon(3)).map(s=>s.label),['м','а','ть'],'silent ь joins the letter before it');
+ const yama=labelSounds({text:'яма',ipa:'jamə'},[{sound:'',accuracy:90},{sound:'',accuracy:30},{sound:'',accuracy:80},{sound:'',accuracy:70}]);
+ assert.deepEqual(yama,[{label:'я',accuracy:30},{label:'м',accuracy:80},{label:'а',accuracy:70}],'initial я covers two sounds and shows the weaker one');
+ assert.deepEqual(labelSounds({text:'подъезд',ipa:'pɐdjɛst'},anon(7)).map(s=>s.label),['п','о','дъ','е','з','д'],'ъ joins the letter before; е after ъ is two sounds');
+ assert.deepEqual(labelSounds({text:'длинный',ipa:'dlʲinːɨj'},anon(6)).map(s=>s.label),['д','л','и','нн','ы','й'],'double consonant heard as one sound');
+ assert.deepEqual(labelSounds({text:'длинный',ipa:'dlʲinːɨj'},anon(7)).map(s=>s.label),[...'длинный'],'double consonant heard as two sounds');
+ assert.deepEqual(labelSounds({text:'воробьи',ipa:'vərɐbʲji'},anon(7)).map(s=>s.label),['в','о','р','о','бь','и'],'и after ь is two sounds');
+ assert.deepEqual(labelSounds({text:'мать',ipa:'matʲ'},anon(4)).map(s=>s.label),['1','2','3','4'],'unexplained count: positions');
  assert.deepEqual(labelSounds({text:'да',ipa:'da'},anon(5)).map(s=>s.label),['1','2','3','4','5'],'no match: positions');
  assert.deepEqual(labelSounds({text:'да',ipa:'da'},[{sound:'d',accuracy:9},{sound:'a',accuracy:8}]).map(s=>s.label),['d','a'],'named sounds keep their names');
  assert.equal(soundsAverage([{accuracy:0},{accuracy:31},{accuracy:52},{accuracy:28},{accuracy:100},{accuracy:100},{accuracy:100}]),59);assert.equal(soundsAverage([{accuracy:null}]),null);assert.equal(soundsAverage([]),null);

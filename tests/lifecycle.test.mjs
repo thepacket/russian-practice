@@ -170,7 +170,7 @@ test('recording asks the browser for 16 kHz audio, drops processing for a chosen
  globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:58,words:[{word:'мама',accuracy:58,error:'None',sounds:[{sound:'m',accuracy:92},{sound:'a',accuracy:35},{sound:'m',accuracy:88},{sound:'ə',accuracy:66}]}]});
  await tap();assert.deepEqual(options,{sampleRate:16000});assert.equal(constraints.audio.noiseSuppression,false);assert.equal(constraints.audio.echoCancellation,false);
  await act(async()=>worklet.port.onmessage({data:new Float32Array(16000).fill(.1)}));await tap();
- assert.match(document.body.textContent,/70/,'headline is the average of the sounds (92+35+88+66)/4');assert.doesNotMatch(document.body.textContent,/Azure word score|Average of/,'no provenance text');assert.match(document.body.textContent,/Good\. Azure is strict with Russian/);
+ assert.match(document.body.textContent,/70/,'headline is the average of the sounds (92+35+88+66)/4');assert.doesNotMatch(document.body.textContent,/Azure word score|Average of/,'no provenance text');assert.doesNotMatch(document.body.textContent,/Azure is strict|Work on the sounds/,'no caption beside the score');
  const chips=[...document.querySelectorAll('.sounds li')];assert.equal(chips.length,4);assert.equal(chips[1].className,'low');assert.match(chips[1].textContent,/a.*35/);
  await app.close();
  storage.removeItem('rwp.mic.v1');const auto=await mount({AudioContext:Context,AudioWorkletNode:Worklet},[],{storage});
@@ -244,7 +244,7 @@ test('recording keeps the browser voice settings, says Speak now only once sound
  assert.match(document.body.textContent,/Speak now/);
  globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:61,lowConfidence:true});
  await tap();
- assert.match(document.body.textContent,/61/);assert.match(document.body.textContent,/Bluetooth mics record at phone-call quality/);
+ assert.match(document.body.textContent,/61/);assert.doesNotMatch(document.body.textContent,/Bluetooth mics record/,'no caption beside the score');
  await app.close();
 });
 test('a second tap cancels a starting mic, a too-short clip is not sent, and recording stops by itself after the word',async()=>{
