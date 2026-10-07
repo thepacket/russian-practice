@@ -4,7 +4,7 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 
 - **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a maximum word length from 1 to 32 letters.
 - **Say / Say Slowly**: hear the word from an Azure neural voice (Svetlana or Dmitry), at normal or half speed.
-- **Tap to Speak**: tap and say the word. Recording stops by itself about a second after you finish (or tap again), and you get an approximate Azure pronunciation score.
+- **Tap to Speak**: tap and say the word. Recording stops by itself about a second after you finish (or tap again). You get a score for each letter of the word and an overall score, from Azure's pronunciation assessment.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 <p align="center">
@@ -19,6 +19,7 @@ There is no backend or shared account. Each person uses their **own Azure Speech
 1. Create an Azure Speech resource in **East US** and copy one of its keys.
 2. Open the app, tap **Say** (or the settings icon), and paste the key.
 3. Keep **Remember my key on this device** ticked, approve the Azure requests, enable Azure calls and save. You only do this once per device. **Forget key on this device** removes everything.
+4. With Bluetooth earbuds such as AirPods, pick the phone's own microphone under **Microphone** in Settings: a headset mic records at phone-call quality and Azure scores it poorly.
 
 Azure bills your account for speech use. The app does not limit requests, so use Azure quotas and budgets to cap spending.
 
@@ -44,11 +45,11 @@ fly deploy --app russian-practice --primary-region yyz --regions yyz --remote-on
 
 Test suites (`npm test`):
 
-- `tests/core.test.mjs`: PCM bounds, scoring, SSML and alphabet data (order, Azure-supported sounds, example words)
+- `tests/core.test.mjs`: PCM bounds, scoring (including per-sound scores, their labelling by letter groups/IPA/position and their average), silence trimming, SSML and alphabet data (order, Azure-supported sounds, example words)
 - `tests/dictionary.test.mjs`: full dictionary counts, licensing/provenance, stress and selection coverage
 - `tests/client.test.mjs`: direct token destination/header, key and approval storage, SDK cleanup, cancellation, Azure error details, no local request limit and Fly config
 - `tests/full-dictionary.test.mjs`: one-download coverage, offline selection, worker cancellation, timeouts, retry, corrupt cache, quota failure and content-version replacement
-- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, tap-to-speak (auto-stop after the word, second-tap cancel and stop, too-short clips, 8-second stop, leading digital silence dropped, silent-mic report, mic opened before the audio engine, Bluetooth hint), mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next/Cancel, failed dictionary selection and rapid length changes
+- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, tap-to-speak (auto-stop after the word, second-tap cancel and stop, too-short clips, 8-second stop, leading digital silence dropped, silent-mic report, mic opened before the audio engine, 16 kHz capture, microphone selector and its processing rule, per-letter score chips, the Settings troubleshooting record), mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next Word, hidden-app handling, dictionary status, failed dictionary selection and rapid length changes
 
 ## Architecture
 
@@ -65,6 +66,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 - When Azure refuses a request, the app shows Azure's own reason (query strings stripped) instead of a generic error
 - Tap to Speak records up to eight seconds of microphone audio. The counter starts at the first real sound: digital silence a Bluetooth headset sends while switching to its call profile is dropped, not counted or sent, and a microphone that stays silent for 10 seconds is reported. Recording stops by itself after about 0.8 s of quiet following the word (or on a second tap); the silence is trimmed and the clip submitted. Too-short clips are not sent, and Next Word discards the clip. The audio engine is created after the microphone opens, so a Bluetooth headset that switched to its call profile is already the active device, and it is asked for 16 kHz directly so the browser's resampler (not a crude average) produces Azure's 16 kHz PCM. Browser noise suppression and echo cancellation stay on for the Automatic microphone and are turned off when a specific microphone is chosen, since they blur the consonant detail Azure scores. A Bluetooth headset mic records at phone-call quality; the Settings hint suggests the phone's own mic. Settings has a Microphone selector (Automatic, or any microphone the browser lists once access is granted); the choice is remembered on the device
 - Azure pronunciation assessment at phoneme granularity. For ru-RU Azure returns one score per sound but leaves the sound names blank, so the app labels them from the word's letters: silent ь/ъ join the letter before them, я/ю/е/ё count as two sounds at the start of a word or after a vowel or ь/ъ (the chip shows the weaker of the two), and a double consonant heard as one sound becomes one chip. If the counts still disagree, labels fall back to the dictionary's IPA, then to positions. Azure's word-level score is lenient (a word with half its sounds under 50 still scored 76), so the headline is the average of the per-sound scores; Azure's word score is not shown (it remains in the Settings troubleshooting view). Bands are green 70+, amber 50–69, coral below 50; the number is not inflated. The score is shown even when Azure is unsure which word it heard (common for one learner word); if Azure does not answer within 20 seconds, the app says so. Stress is not assessed
+- Settings ends with a collapsible "Last Azure result (troubleshooting)" record: what the app sent (word, microphone, sample rate, clip length and peak level; never the audio) and Azure's top result, kept in memory only, with a Copy button
 - Installable mobile PWA with a dictionary-only local cache; no persistent audio/score cache or offline speech library
 
 ## Credentials and privacy
@@ -74,7 +76,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 3. **Remember my key on this device** (checked by default) stores the key, and whether Azure calls were approved and enabled, in this origin’s browser local storage, so setup is needed once per device. This is not encrypted: app JavaScript, compromised same-origin code, browser extensions or anyone with access to that browser profile may read it. Do not use this on a shared device. Browser/device backups and synchronization are outside the app’s control.
 4. The long-lived key goes directly to `https://eastus.api.cognitive.microsoft.com/sts/v1.0/issueToken` in the subscription-key header. It never goes to Fly or an app API. The SDK receives only the short-lived Azure token, held in memory.
 5. Browsers cannot add custom WebSocket authorization headers. Microsoft’s SDK places the short-lived token in the **Azure-only WSS connection URL**, visible in browser developer tools and potentially Azure infrastructure logs. The raw subscription key is not supplied to the SDK or placed in a URL.
-6. TTS words and submitted audio go directly to Microsoft’s fixed East US Speech endpoints. SDK telemetry is disabled. The app has no analytics, payload logging, audio storage or score storage. Azure’s own processing, billing and retention policies still apply.
+6. TTS words and submitted audio go directly to Microsoft’s fixed East US Speech endpoints. SDK telemetry is disabled. The app has no analytics, payload logging, audio storage or score storage; the Settings troubleshooting record holds only the last Azure result in memory, never audio, and is gone on reload. Azure’s own processing, billing and retention policies still apply.
 7. Forget key removes the app’s remembered key and approval and clears memory. Rotate the key in Azure for revocation. Requests already submitted can still finish after cancellation.
 
 The app does not limit how many speech requests you make. Use Azure resource quotas and billing controls for account-level protection; provider billing is determined by Azure.
