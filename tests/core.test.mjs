@@ -23,8 +23,8 @@ test('alphabet has the 33 letters in standard order with Azure-supported sounds'
  assert.match(ssml({text:'б',ipa:alphabet[1].sound.say},false,'Svetlana'),/<phoneme alphabet="ipa" ph="bə">б<\/phoneme>/);
  const i=alphabet.find(l=>l.lower==='и');assert.equal(i.sound.say,'');
  assert.match(ssml({text:'и',ipa:i.sound.say},false,'Svetlana'),/<break time="250ms"\/>и<\/prosody>/,'plain letter, no phoneme override');
- assert.match(ssml(words[0],false,'Svetlana'),new RegExp('<break time="250ms"/>'+words[0].stress),'short lead-in so Android does not clip the start');
- assert.match(ssml({text:'вода',stress:'вода́',ipa:'vʌˈda'},false,'Svetlana'),/>вода́<\/prosody>/,'stress mark kept, IPA not forced');assert.doesNotMatch(ssml({text:'вода',stress:'вода́',ipa:'vʌˈda'},false,'Svetlana'),/phoneme/);
+ assert.match(ssml(words[0],false,'Svetlana'),new RegExp('<break time="250ms"/>'+words[0].text),'short lead-in so Android does not clip the start');
+ const w=ssml({text:'гектар',stress:'гекта́р',ipa:'ɡʲɪkˈtar'},false,'Svetlana');assert.match(w,/>гектар<\/prosody>/,'plain word: no stress mark (it splits the word) and no forced IPA');assert.doesNotMatch(w,/phoneme|\u0301/);
 });
 test('silence trimming keeps the spoken part with a margin',async()=>{
  const {trimSilence}=await import('../lib/audio.mjs');const rate=48000;

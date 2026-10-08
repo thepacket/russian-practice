@@ -60,7 +60,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 ## Feature details
 
 - 41,224 spelling/stress entries, 40,853 distinct spellings, randomized by maximum length (1–32 Cyrillic letters), with no immediate repeat of the same spelling
-- English meaning, canonical stress, Wiktionary source links. Say sends the word as plain text with its stress mark so Azure's Russian voice applies native reduction and palatalisation; the sourced IPA is used only for single sounds in the Alphabet and for labelling per-sound scores
+- English meaning, canonical stress, Wiktionary source links. Say sends the word as plain text (no stress mark: Azure splits a word at a combining accent, reading гекта́р as "гекта" + "р") so Azure's Russian voice applies its own stress, reduction and palatalisation; the sourced IPA is used only for single sounds in the Alphabet and for labelling per-sound scores
 - The stressed vowel is highlighted in the word; scores are coloured green (70+), amber (50–69) or coral (below 50); in the Alphabet, vowels are amber (like the stressed vowel) and consonants blue
 - Svetlana/Dmitry Russian neural voices; normal and half-speed (Say Slowly) speech. Each clip starts with a 250ms pause so phones don't clip the first sound
 - Alphabet panel: the 33 letters in standard order with names and IPA; tapping a letter plays its sound (consonants with a short neutral vowel, as in "buh"). Vowels also show their unstressed sound, played inside a common example word, because Azure voices an isolated reduced vowel as a full one
