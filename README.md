@@ -1,5 +1,7 @@
 # Russian Word Practice
 
+*** Update: There is an issue with the Azure Speech service which is not pronunncing correctly some words. ***
+
 An installable web app (PWA) for practising Russian pronunciation, one word at a time. Live at <https://russian-practice.fly.dev>.
 
 - **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a maximum word length from 1 to 32 letters.
