@@ -1,6 +1,6 @@
 # Russian Word Practice
 
-*** Update: There is an issue with the Azure Speech service which is not pronunncing correctly some words. ***
+*** Update: There is an issue with the Azure Speech service where it is not pronouncing certain words correctly. ***
 
 An installable web app (PWA) for practising Russian pronunciation, one word at a time. Live at <https://russian-practice.fly.dev>.
 
