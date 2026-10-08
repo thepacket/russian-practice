@@ -54,5 +54,11 @@
     "24": 5,
     "31": 1,
     "32": 1
+  },
+  "frequency": {
+    "source": "wordfreq 3.1.1 (Robyn Speer), ru; data under CC BY-SA 4.0",
+    "sourceUrl": "https://github.com/rspeer/wordfreq",
+    "method": "Each lemma’s frequency is the sum of wordfreq word frequencies for the lemma and its inflected forms from the same Wiktionary record; entries are ranked 1..N within this dictionary (ties alphabetical). The rank is the eighth column.",
+    "unranked": 3433
   }
 }

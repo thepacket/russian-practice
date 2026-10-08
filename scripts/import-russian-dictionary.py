@@ -67,7 +67,8 @@ for line in SOURCE.open():
             key=(text,form)
             if key in seen:break
             seen.add(key)
-            rows.append([text,form,gloss,pronunciation[0],pronunciation[1],x['pos'],sense.get('id','')]);break
+            # Eighth column: frequency rank, filled in by scripts/rank-dictionary.py (0 = not ranked yet).
+            rows.append([text,form,gloss,pronunciation[0],pronunciation[1],x['pos'],sense.get('id',''),0]);break
 rows.sort(key=lambda r:(r[0],r[1]))
 # Keep old numeric IDs for existing open tabs and regression tests, replacing original
 # hand-written entries with source-backed equivalents wherever present.

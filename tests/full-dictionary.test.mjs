@@ -54,3 +54,12 @@ test('worker bridge drops cancelled words but keeps global progress and recovers
  const third=chooseWord(3);const failed=assert.rejects(third,/worker stopped/);worker.onerror();await failed;const oldWorker=worker;
  const fourth=chooseWord(3);assert.notEqual(worker,oldWorker);worker.onmessage({data:{id:worker.messages[0].id,word:words[0]}});await fourth;unsubscribe();delete globalThis.Worker;
 });
+
+test('the vocabulary cap keeps only the most frequent words and explains an empty intersection',async()=>{
+ const storage=cacheStorage();let sample=0;const choose=createDictionary(response,()=>{sample=(sample+0.37)%1;return sample;},{storage});
+ for(let i=0;i<40;i++){const w=await choose(32,undefined,undefined,()=>{},1000);assert.ok(w.rank>=1&&w.rank<=1000,`rank ${w.rank} within 1,000`);}
+ const top=await choose(32,undefined,undefined,()=>{},1);assert.equal(top.rank,1);
+ await assert.rejects(choose(1,undefined,undefined,()=>{},1),/No word in this vocabulary size fits the letter limit/);
+ const any=await choose(32,undefined,undefined,()=>{},0);assert.ok(Number.isInteger(any.rank));
+ await assert.rejects(choose(32,undefined,undefined,()=>{},-1),/vocabulary size/);
+});

@@ -40,3 +40,10 @@ test('selection boundaries cover every eligible entry without a tiny starter fal
  const pool=wordPool(3);for(let i=0;i<pool.length;i++)assert.equal(pickWord(3,undefined,()=>((i+.5)/pool.length)).id,pool[i].id);
  assert.ok(new Set(Array.from({length:500},(_,i)=>pickWord(32,undefined,()=>i/500).id)).size>400);
 });
+
+test('every entry carries a frequency rank; pickWord honours the vocabulary cap',async()=>{
+ const {pickWord}=await import('../lib/words.mjs');
+ assert.ok(words.every(w=>Number.isInteger(w.rank)&&w.rank>=1));const top=words.filter(w=>w.rank<=1000);assert.ok(top.length>=1000&&top.length<1100,'about 1,000 spellings in the first tier (homographs share a rank)');
+ for(let i=0;i<30;i++)assert.ok(pickWord(32,-1,Math.random,1000).rank<=1000);
+ assert.throws(()=>pickWord(1,-1,Math.random,1),/No different word fits/);
+});

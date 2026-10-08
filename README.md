@@ -2,7 +2,7 @@
 
 An installable web app (PWA) for practising Russian pronunciation, one word at a time. Live at <https://russian-practice.fly.dev>.
 
-- **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a maximum word length from 1 to 32 letters.
+- **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a vocabulary size in Settings (the 1,000, 2,500, 5,000 or 10,000 most common words, or all; default 2,500) and a maximum word length from 1 to 32 letters.
 - **Say / Say Slowly**: hear the word from an Azure neural voice (Svetlana or Dmitry), at normal or half speed.
 - **Tap to Speak**: tap and say the word. Recording stops by itself about a second after you finish (or tap again). You get a score for each letter of the word and an overall score, from Azure's pronunciation assessment.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
@@ -27,7 +27,7 @@ Azure bills your account for speech use. The app does not limit requests, so use
 
 ## Development
 
-Requires Node 24 to build and test; production serves static files only. To rebuild the dictionary, download the Kaikki Russian JSONL (see `public/dictionary-attribution.json`) to `data/kaikki-russian.jsonl` (git-ignored) and run `python3 scripts/import-russian-dictionary.py data/kaikki-russian.jsonl`.
+Requires Node 24 to build and test; production serves static files only. To rebuild the dictionary, download the Kaikki Russian JSONL (see `public/dictionary-attribution.json`) to `data/kaikki-russian.jsonl` (git-ignored) and run `python3 scripts/import-russian-dictionary.py data/kaikki-russian.jsonl`, then `pip install wordfreq` and `python3 scripts/rank-dictionary.py data/kaikki-russian.jsonl` to add the frequency ranks.
 
 ```sh
 npm ci
@@ -48,10 +48,10 @@ fly deploy --app russian-practice --primary-region yyz --regions yyz --remote-on
 Test suites (`npm test`):
 
 - `tests/core.test.mjs`: PCM bounds, scoring (including per-sound scores, their labelling by letter groups/IPA/position and their average), silence trimming, SSML and alphabet data (order, Azure-supported sounds, example words)
-- `tests/dictionary.test.mjs`: full dictionary counts, licensing/provenance, stress and selection coverage
+- `tests/dictionary.test.mjs`: full dictionary counts, licensing/provenance, stress, frequency ranks and selection coverage
 - `tests/client.test.mjs`: direct token destination/header, key and approval storage, SDK cleanup, cancellation, Azure error details, no local request limit and Fly config
-- `tests/full-dictionary.test.mjs`: one-download coverage, offline selection, worker cancellation, timeouts, retry, corrupt cache, quota failure and content-version replacement
-- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, tap-to-speak (auto-stop after the word, second-tap cancel and stop, too-short clips, 8-second stop, leading digital silence dropped, silent-mic report, mic opened before the audio engine, 16 kHz capture, microphone selector and its processing rule, per-letter score chips, the Settings troubleshooting record), mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next Word, hidden-app handling, dictionary status, failed dictionary selection and rapid length changes
+- `tests/full-dictionary.test.mjs`: one-download coverage, offline selection, the vocabulary-size cap, worker cancellation, timeouts, retry, corrupt cache, quota failure and content-version replacement
+- `tests/lifecycle.test.mjs`: remembered setup across reloads, Forget, tap-to-speak (auto-stop after the word, second-tap cancel and stop, too-short clips, 8-second stop, leading digital silence dropped, silent-mic report, mic opened before the audio engine, 16 kHz capture, microphone selector and its processing rule, per-letter score chips, the Settings troubleshooting record), the vocabulary-size setting, mocked denied microphone, late permissions/results, playback recovery, Alphabet playback and caching, Next Word, hidden-app handling, dictionary status, failed dictionary selection and rapid length changes
 
 ## Architecture
 
@@ -59,7 +59,8 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 
 ## Feature details
 
-- 41,224 spelling/stress entries, 40,853 distinct spellings, randomized by maximum length (1–32 Cyrillic letters), with no immediate repeat of the same spelling
+- 41,224 spelling/stress entries, 40,853 distinct spellings, randomized by maximum length (1–32 Cyrillic letters) within the chosen vocabulary size, with no immediate repeat of the same spelling
+- Vocabulary size (Settings): each entry carries a frequency rank within the dictionary, computed by summing `wordfreq` frequencies over the lemma and its Wiktionary inflected forms (frequency lists count forms such as был/была, while the dictionary holds lemmas such as быть). The setting keeps the 1,000, 2,500, 5,000 or 10,000 most frequent words, or all; 3,433 entries with no frequency data appear only with "all". The footer shows the active size
 - English meaning, canonical stress, Wiktionary source links. Say sends the word as plain text (no stress mark: Azure splits a word at a combining accent, reading гекта́р as "гекта" + "р") so Azure's Russian voice applies its own stress, reduction and palatalisation; the sourced IPA is used only for single sounds in the Alphabet and for labelling per-sound scores
 - The stressed vowel is highlighted in the word; scores are coloured green (70+), amber (50–69) or coral (below 50); in the Alphabet, vowels are amber (like the stressed vowel) and consonants blue
 - Svetlana/Dmitry Russian neural voices; normal and half-speed (Say Slowly) speech. Each clip starts with a 250ms pause so phones don't clip the first sound
@@ -116,7 +117,7 @@ Dictionary data and adaptations are CC BY-SA 4.0, attributed to English Wiktiona
 
 All 442,594 source records were considered. Lowercase single-word lemmas with matching English gloss, lexical stress and supported IPA were retained; names, phrases, inflected-only records and unsuitable senses were excluded. Meanings keep Wiktionary's labels such as "(colloquial)" or "(slang)", and relational adjectives, which Wiktionary defines by their noun, read "relating to …" (for example стре́ссовый: "relating to stress"). This is broad vocabulary, not the whole Russian language or a curated course. The IPA adapted to Azure's symbol set is no longer used to pronounce words (it made them sound wrong); it labels per-sound scores and drives the Alphabet's single sounds.
 
-Build generation creates one complete content-hashed gzip archive (1,867,107 bytes; 41,224 entries / 40,853 distinct spellings). The app downloads it once at startup, checks its SHA-256 and counts, decompresses and parses it in a dedicated Web Worker, then saves the verified compressed bytes in a dictionary-only CacheStorage cache. Later page loads use that local copy without a dictionary network request. Browser storage can be cleared or evicted; if storage is denied/full, the current tab still works and the status explains that another visit will need a download. Updating the dictionary changes its content hash and triggers a fresh whole-corpus download.
+Build generation creates one complete content-hashed gzip archive (2,057,064 bytes; 41,224 entries / 40,853 distinct spellings, each with its frequency rank). The app downloads it once at startup, checks its SHA-256 and counts, decompresses and parses it in a dedicated Web Worker, then saves the verified compressed bytes in a dictionary-only CacheStorage cache. Later page loads use that local copy without a dictionary network request. Browser storage can be cleared or evicted; if storage is denied/full, the current tab still works and the status explains that another visit will need a download. Updating the dictionary changes its content hash and triggers a fresh whole-corpus download.
 
 Next and maximum-letter changes select entirely from the worker's in-memory dictionary, uniformly across eligible entries while excluding all variants of the previous spelling. They do not fetch more sections. Concurrent selections share the startup download; cancelling a selection does not restart it. Download progress, errors and storage warnings are shown under the buttons; the status line disappears once the dictionary is ready. A stalled download times out after 60 seconds; Next retries. Interrupted or corrupt data is never saved; a corrupt saved copy is replaced. Modern HTTPS browsers with module workers, Web Crypto and DecompressionStream are required.
 
@@ -135,6 +136,7 @@ The source code is released under the [MIT License](LICENSE). © 2026 Andre Paqu
 Other material keeps its own license:
 
 - **Dictionary data** (`public/dictionary*`, `lib/dictionary-data.mjs`) is adapted from English Wiktionary via Kaikki.org/Wiktextract under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Attribution and provenance are in `public/dictionary-attribution.json`.
+- **Frequency ranks** in the dictionary are derived from [wordfreq](https://github.com/rspeer/wordfreq) (Robyn Speer), whose data is CC BY-SA 4.0.
 - **UI components** derived from shadcn/ui are MIT-licensed. See [vendor/shadcn-tailwind-4.13.0.LICENSE.md](vendor/shadcn-tailwind-4.13.0.LICENSE.md).
 - **Speech** is generated by Microsoft Azure under your own Azure account and Microsoft's terms.
 
