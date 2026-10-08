@@ -179,7 +179,9 @@ test('recording asks the browser for 16 kHz audio, drops processing for a chosen
 test('unnamed per-sound scores are shown against the word’s letters',async()=>{
  let worklet;class Context{sampleRate=16000;audioWorklet={addModule:async()=>{}};destination={};resume(){return Promise.resolve()}close(){return Promise.resolve()}createMediaStreamSource(){return {connect(){}}}createGain(){return{gain:{value:1},connect(){return this}}}}class Worklet{port={};constructor(){worklet=this}connect(){return this}disconnect(){}}
  const app=await mount({AudioContext:Context,AudioWorkletNode:Worklet});app.media.getUserMedia=async()=>({getTracks:()=>[{stop(){}}]});
- const letters=[...document.querySelector('h1').textContent.replace(/\u0301/g,'')];
+ // A fixed word with one sound per letter; the random start word may contain ь/ъ or a two-sound vowel.
+ const simple=words.find(w=>w.text==='молоко');globalThis.fetch=async()=>Response.json(simple);await click('Next Word');assert.equal(document.querySelector('h1').textContent,simple.stress);
+ const letters=[...simple.text];
  const scores=letters.map((_,i)=>i===1?20:80);
  globalThis.fetch=async()=>Response.json({kind:'scored',accuracy:90,words:[{word:letters.join(''),accuracy:90,error:'None',sounds:scores.map(a=>({sound:'',accuracy:a}))}]});
  await tap();await act(async()=>worklet.port.onmessage({data:new Float32Array(16000).fill(.1)}));await tap();
