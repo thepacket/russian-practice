@@ -18,7 +18,7 @@ There is no backend or shared account. Each person uses their **own Azure Speech
 
 ## Getting started
 
-1. Create an Azure Speech resource in **East US** and copy one of its keys.
+1. Create an Azure Speech resource in **East US** and copy one of its keys. East US is currently the only supported region: Azure keys are regional and the app's endpoints are fixed to East US, so a key from another region fails at sign-in with "Azure rejected the key (HTTP 401)". Supporting other regions is tracked in [issue #3](https://github.com/thepacket/russian-practice/issues/3).
 2. Open the app, tap **Say** (or the settings icon), and paste the key.
 3. Keep **Remember my key on this device** ticked, approve the Azure requests, enable Azure calls and save. You only do this once per device. **Forget key on this device** removes everything.
 4. With Bluetooth earbuds such as AirPods, pick the phone's own microphone under **Microphone** in Settings: a headset mic records at phone-call quality and Azure scores it poorly.
@@ -79,7 +79,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 3. **Remember my key on this device** (checked by default) stores the key, and whether Azure calls were approved and enabled, in this origin’s browser local storage, so setup is needed once per device. This is not encrypted: app JavaScript, compromised same-origin code, browser extensions or anyone with access to that browser profile may read it. Do not use this on a shared device. Browser/device backups and synchronization are outside the app’s control.
 4. The long-lived key goes directly to `https://eastus.api.cognitive.microsoft.com/sts/v1.0/issueToken` in the subscription-key header. It never goes to Fly or an app API. The SDK receives only the short-lived Azure token, held in memory.
 5. Browsers cannot add custom WebSocket authorization headers. Microsoft’s SDK places the short-lived token in the **Azure-only WSS connection URL**, visible in browser developer tools and potentially Azure infrastructure logs. The raw subscription key is not supplied to the SDK or placed in a URL.
-6. TTS words and submitted audio go directly to Microsoft’s fixed East US Speech endpoints. SDK telemetry is disabled. The app has no analytics, payload logging, audio storage or score storage; the Settings troubleshooting record holds only the last Azure result in memory, never audio, and is gone on reload. Azure’s own processing, billing and retention policies still apply.
+6. TTS words and submitted audio go directly to Microsoft’s fixed East US Speech endpoints (`eastus.tts.speech.microsoft.com`, `eastus.stt.speech.microsoft.com`; the token exchange uses `eastus.api.cognitive.microsoft.com`). The Content Security Policy in `nginx.conf` allows only these hosts. SDK telemetry is disabled. The app has no analytics, payload logging, audio storage or score storage; the Settings troubleshooting record holds only the last Azure result in memory, never audio, and is gone on reload. Azure’s own processing, billing and retention policies still apply.
 7. Forget key removes the app’s remembered key and approval and clears memory. Rotate the key in Azure for revocation. Requests already submitted can still finish after cancellation.
 
 The app does not limit how many speech requests you make. Use Azure resource quotas and billing controls for account-level protection; provider billing is determined by Azure.
