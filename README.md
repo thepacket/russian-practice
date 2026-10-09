@@ -5,6 +5,7 @@ An installable web app (PWA) for practising Russian pronunciation, one word at a
 - **Wiktionary dictionary**: 40,853 words with stress marks, English meanings and Wiktionary links, picked at random for each Next Word. Choose a vocabulary size in Settings (the 1,000, 2,500, 5,000 or 10,000 most common words, or all; default 2,500) and a maximum word length from 1 to 32 letters.
 - **Say / Say Slowly**: hear the word from an Azure neural voice (Svetlana or Dmitry), at normal or half speed.
 - **Tap to Speak**: tap and say the word. Recording stops by itself about a second after you finish (or tap again). You get a score for each letter of the word and an overall score, from Azure's pronunciation assessment.
+- **Everything about a word**: tap the word to open all of English Wiktionary's information on it, offline-style inside the app: every meaning with its examples, synonyms and related terms, the full inflection table, pronunciation, etymology and descendants. Nothing opens an external page.
 - **Alphabet**: the 33 letters in standard order with their names and IPA sounds. Tap a letter to hear its sound. Vowels also show their unstressed (reduced) sound, played inside an example word such as ма́ма or молоко́.
 
 It is recommended to compare pronunciation with https://en.openrussian.org
@@ -28,7 +29,7 @@ Azure bills your account for speech use. The app does not limit requests, so use
 
 ## Development
 
-Requires Node 24 to build and test; production serves static files only. To rebuild the dictionary, download the Kaikki Russian JSONL (see `public/dictionary-attribution.json`) to `data/kaikki-russian.jsonl` (git-ignored) and run `python3 scripts/import-russian-dictionary.py data/kaikki-russian.jsonl`, then `pip install wordfreq` and `python3 scripts/rank-dictionary.py data/kaikki-russian.jsonl` to add the frequency ranks.
+Requires Node 24 to build and test; production serves static files only. To rebuild the dictionary, download the Kaikki Russian JSONL (see `public/dictionary-attribution.json`) to `data/kaikki-russian.jsonl` (git-ignored) and run `python3 scripts/import-russian-dictionary.py data/kaikki-russian.jsonl`, then `pip install wordfreq` and `python3 scripts/rank-dictionary.py data/kaikki-russian.jsonl` to add the frequency ranks, then `python3 scripts/extract-word-details.py data/kaikki-russian.jsonl` to regenerate the word-detail shards.
 
 ```sh
 npm ci
@@ -62,7 +63,7 @@ A static, multi-user Russian pronunciation PWA. React + TypeScript in the browse
 
 - 41,224 spelling/stress entries, 40,853 distinct spellings, randomized by maximum length (1–32 Cyrillic letters) within the chosen vocabulary size, with no immediate repeat of the same spelling
 - Vocabulary size (Settings): each entry carries a frequency rank within the dictionary, computed by summing `wordfreq` frequencies over the lemma and its Wiktionary inflected forms (frequency lists count forms such as был/была, while the dictionary holds lemmas such as быть). The setting keeps the 1,000, 2,500, 5,000 or 10,000 most frequent words, or all; 3,433 entries with no frequency data appear only with "all". The footer shows the active size
-- English meaning, canonical stress, Wiktionary source links. Say sends the word as plain text (no stress mark: Azure splits a word at a combining accent, reading гекта́р as "гекта" + "р") so Azure's Russian voice applies its own stress, reduction and palatalisation; the sourced IPA is used only for single sounds in the Alphabet and for labelling per-sound scores
+- English meaning, canonical stress. Tapping the word opens its full Wiktionary records (44,923 records for 40,853 spellings, 32 MB compressed in 846 shards under `public/words/`, keyed by the first two or three letters and fetched on first use, then kept for the session). The known fields are laid out (meanings with examples, synonyms/antonyms/related/derived terms, forms, pronunciation, etymology, descendants); wiki housekeeping (categories, link texts, template source) is not shown, and any unexpected field appears under "Other data". No external links. Say sends the word as plain text (no stress mark: Azure splits a word at a combining accent, reading гекта́р as "гекта" + "р") so Azure's Russian voice applies its own stress, reduction and palatalisation; the sourced IPA is used only for single sounds in the Alphabet and for labelling per-sound scores
 - The stressed vowel is highlighted in the word; scores are coloured green (70+), amber (50–69) or coral (below 50); in the Alphabet, vowels are amber (like the stressed vowel) and consonants blue
 - Svetlana/Dmitry Russian neural voices; normal and half-speed (Say Slowly) speech. Each clip starts with a 250ms pause so phones don't clip the first sound
 - Alphabet panel: the 33 letters in standard order with names and IPA; tapping a letter plays its sound (consonants with a short neutral vowel, as in "buh"). Vowels also show their unstressed sound, played inside a common example word, because Azure voices an isolated reduced vowel as a full one

@@ -59,3 +59,4 @@ test('per-sound scores are labelled by letter, then by IPA, then by position; av
  assert.deepEqual(labelSounds({text:'да',ipa:'da'},[{sound:'d',accuracy:9},{sound:'a',accuracy:8}]).map(s=>s.label),['d','a'],'named sounds keep their names');
  assert.equal(soundsAverage([{accuracy:0},{accuracy:31},{accuracy:52},{accuracy:28},{accuracy:100},{accuracy:100},{accuracy:100}]),59);assert.equal(soundsAverage([{accuracy:null}]),null);assert.equal(soundsAverage([]),null);
 });
+

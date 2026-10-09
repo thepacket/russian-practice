@@ -60,5 +60,12 @@
     "sourceUrl": "https://github.com/rspeer/wordfreq",
     "method": "Each lemma’s frequency is the sum of wordfreq word frequencies for the lemma and its inflected forms from the same Wiktionary record; entries are ranked 1..N within this dictionary (ties alphabetical). The rank is the eighth column.",
     "unranked": 3433
+  },
+  "details": {
+    "description": "Every English Wiktionary record (all fields, unmodified) for each dictionary spelling, extracted from the same Kaikki snapshot and shipped in compressed shards under /words/, fetched when a word is tapped.",
+    "records": 44923,
+    "spellings": 40853,
+    "shards": 846,
+    "bytes": 31779204
   }
 }

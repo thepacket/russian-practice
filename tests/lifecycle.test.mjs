@@ -213,6 +213,34 @@ test('the vocabulary size is remembered, passed to word selection, and shown in 
  globalThis.fetch=async url=>{const u=new URL(url,'https://test');again.push(Number(u.searchParams.get('rank')));return Response.json(words[0]);};
  await click('Next Word');assert.deepEqual(again,[2500],'default vocabulary is 2,500');await fresh.close();
 });
+test('tapping the word opens everything about it, with no external links',async()=>{
+ const {gzipSync}=await import('node:zlib');
+ const app=await mount();globalThis.DecompressionStream??=class{};
+ const shown=document.querySelector('h1').textContent.replace(/\u0301/g,'');
+ const record={word:shown,pos:'noun',senses:[{glosses:['a test gloss'],examples:[{text:'приме́р фра́зы',english:'an example phrase'}],synonyms:[{word:'синоним'}]}],forms:[{form:shown,tags:['canonical']},{form:shown+'ом',tags:['instrumental','singular']},{form:'no-table-tags',source:'declension',tags:['table-tags']},{form:'ru-noun-table',source:'declension',tags:['inflection-template']},{form:'по-'+shown,tags:['comparative']}],sounds:[{ipa:'[tɛst]'},{audio:'Ru-test.ogg',ogg_url:'https://upload.wikimedia.org/x.ogg'}],etymology_text:'From somewhere.'};
+ globalThis.fetch=async url=>{if(String(url).startsWith('/words/'))return new Response(gzipSync(Buffer.from(JSON.stringify({[shown]:[record]}))));return Response.json(words[0]);};
+ await act(async()=>document.querySelector('h1 button').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();await act(async()=>{await new Promise(r=>setTimeout(r,50));});await flush();
+ const dialog=document.querySelector('.details-dialog');assert.ok(dialog,'dialog open');
+ assert.match(dialog.textContent,/a test gloss/);assert.match(dialog.textContent,/приме́р фра́зы/);assert.match(dialog.textContent,/an example phrase/);assert.match(dialog.textContent,/синоним/);assert.match(dialog.textContent,/instrumental singular/);assert.doesNotMatch(dialog.textContent,/no-table-tags|ru-noun-table|по-|Forms \(3\)|Forms \(4\)/);assert.match(dialog.textContent,/Forms \(1\)/);assert.match(dialog.textContent,/\[tɛst\]/);assert.doesNotMatch(dialog.textContent,/Ru-test\.ogg|audio file|wikimedia/);assert.match(dialog.textContent,/From somewhere/);assert.doesNotMatch(dialog.textContent,/Complete record|Categories|Link texts|Templates and links/);
+ assert.equal(dialog.querySelectorAll('a').length,0,'no links in the details');assert.equal(document.querySelectorAll('.practice-shell a[target=_blank]').length,0,'no external links on the practice screen');
+ await click('Next Word');assert.equal(document.querySelector('.details-dialog'),null,'closes when the word changes');
+ await app.close();
+});
+test('tapping a Russian word in the details panel pronounces that word',async()=>{
+ const {gzipSync}=await import('node:zlib');let played=0;class AudioMock{play(){played++;return Promise.resolve();}pause(){}}
+ const app=await mount({Audio:AudioMock});globalThis.DecompressionStream??=class{};
+ const shown=document.querySelector('h1').textContent.replace(/\u0301/g,'');
+ const record={word:shown,pos:'noun',senses:[{glosses:['gloss'],examples:[{text:'смотре́ть в окно́',english:'to look through a window'}]}],forms:[{form:shown,tags:['canonical']}]};
+ const spoken=[];globalThis.fetch=async(url,opts)=>{const u=String(url);if(u.startsWith('/words/'))return new Response(gzipSync(Buffer.from(JSON.stringify({[shown]:[record]}))));if(u.startsWith('/api/practice')){spoken.push(1);return new Response(new Uint8Array([1,2,3]));}return Response.json(words[0]);};
+ await act(async()=>document.querySelector('h1 button').dispatchEvent(new window.MouseEvent('click',{bubbles:true})));await flush();await act(async()=>{await new Promise(r=>setTimeout(r,50));});await flush();
+ const dialog=document.querySelector('.details-dialog');assert.match(dialog.textContent,/Tap any Russian word to hear it/);
+ // jsdom has no caret-from-point: point it at "окно́" inside the example sentence.
+ const textNode=[...dialog.querySelectorAll('.examples span[lang=ru]')].map(el=>el.firstChild).find(n=>n&&n.textContent.includes('окно́'));
+ document.caretRangeFromPoint=()=>({startContainer:textNode,startOffset:textNode.textContent.indexOf('окно́')+1});
+ await act(async()=>textNode.parentElement.dispatchEvent(new window.MouseEvent('click',{bubbles:true,clientX:5,clientY:5})));await flush();
+ assert.equal(spoken.length,1,'one Azure request');assert.equal(played,1,'played');assert.match(dialog.textContent,/Playing окно/,'status names the tapped word, stress mark removed');
+ delete document.caretRangeFromPoint;await app.close();
+});
 test('microphone denied gives retry guidance and nothing to check',async()=>{const app=await mount();let requests=0;globalThis.fetch=async()=>{requests++;return Response.json({});};await tap();assert.match(document.body.textContent,/permission was denied/);assert.equal(speak().textContent,'Tap to Speak');assert.equal(requests,0);await app.close();});
 test('Next invalidates pending permission and stops late stream',async()=>{const app=await mount();const d=deferred();let stopped=0;app.media.getUserMedia=()=>d.promise;await tap();await click('Next Word');await act(async()=>d.resolve({getTracks:()=>[{stop:()=>stopped++}]}));await flush();assert.equal(stopped,1);assert.equal(speak().textContent,'Tap to Speak');assert.doesNotMatch(document.body.textContent,/Waiting for microphone/);await app.close();});
 test('late TTS does not play after Next',async()=>{let played=0;class AudioMock{play(){played++;return Promise.resolve()}pause(){}}const app=await mount({Audio:AudioMock});const d=deferred();globalThis.fetch=()=>d.promise;await click('Say');await click('Next Word');await act(async()=>d.resolve(new Response(new Uint8Array([1,2,3]))));await flush();assert.equal(played,0);await app.close();});
