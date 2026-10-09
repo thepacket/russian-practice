@@ -50,3 +50,4 @@ h1 .stress{color:var(--fair)}
 .setup-dialog *{min-width:0;max-width:100%}
 .details pre,.diag pre{overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
 .details-dialog .alphabet-status{min-height:0;margin:0}
+.details{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}

@@ -1,6 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {gzipSync} from 'node:zlib';
 import {wordDetails,shardKey,detailCounts} from '../lib/word-details.mjs';
+import {lemmasOfForm,plainForm,formShardKey} from '../lib/word-forms.mjs';
+import formsManifest from '../lib/word-forms-manifest.mjs';
 import manifest from '../lib/word-details-manifest.mjs';
 import {readFile} from 'node:fs/promises';
 import {words} from '../lib/words.mjs';
@@ -23,4 +25,12 @@ test('shards are fetched once per session and errors are not cached',async()=>{
  assert.equal((await wordDetails('замок',fetcher)).length,2);assert.equal((await wordDetails('зама',fetcher)).length,1);
  assert.equal(calls,2,'one failed and one successful fetch, then cached');
  assert.deepEqual(await wordDetails('ъъ',fetcher),[],'no shard: empty');
+});
+
+test('the forms index maps an inflected form (stress removed) to its dictionary spellings',async()=>{
+ assert.equal(plainForm('Окна́'),'окна');assert.equal(formsManifest.format,1);assert.ok(formsManifest.forms>400000);
+ const url=formsManifest.shards[formShardKey('окна')];assert.ok(url);const bytes=await readFile(new URL('../public'+url,import.meta.url));
+ const lemmas=await lemmasOfForm('окна́',async()=>new Response(bytes));assert.ok(lemmas.includes('окно'),`окна́ → ${lemmas}`);
+ assert.deepEqual(await lemmasOfForm('ъъъ',async()=>{throw Error('no fetch expected');}),[]);
+ assert.equal(formShardKey('окна'),'ок','two-letter key unless the group was split');
 });

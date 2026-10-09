@@ -67,5 +67,11 @@
     "spellings": 40853,
     "shards": 846,
     "bytes": 31779204
+  },
+  "forms": {
+    "description": "Index of every inflected form of a dictionary word (stress marks removed) to its dictionary spellings, from the same Wiktionary records, in compressed shards under /forms/; used when a form is long-pressed in the word panel.",
+    "forms": 470127,
+    "shards": 522,
+    "bytes": 2076409
   }
 }

@@ -1,10 +1,11 @@
 'use client';
+import { useRef } from 'react';
 // Everything Wiktionary has on a word, rendered from its full Kaikki records. Known fields get a
 // readable layout; whatever is left is listed under "Other data". Wiki housekeeping (categories,
-// link texts, template source), audio file references and derived terms are not shown. No links: the app never opens external pages.
+// link texts, template source) and audio file references are not shown. No links: the app never opens external pages.
 type Rec=Record<string,any>;
 const KNOWN=new Set(['word','lang','lang_code','pos','head_templates','forms','sounds','senses','etymology_text','etymology_links','etymology_templates','etymology_number','inflection_templates','related','derived','synonyms','antonyms','hypernyms','hyponyms','coordinate_terms','holonyms','meronyms','descendants','hyphenations','wikipedia','categories','abbreviations','proverbs','info_templates','form_of','alt_of','abbreviation']);
-const TERM_KEYS:[string,string][]=[['synonyms','Synonyms'],['antonyms','Antonyms'],['hypernyms','Hypernyms'],['hyponyms','Hyponyms'],['coordinate_terms','Coordinate terms'],['holonyms','Holonyms'],['meronyms','Meronyms'],['related','Related terms'],['form_of','Form of'],['alt_of','Alternative form of'],['abbreviations','Abbreviations'],['proverbs','Proverbs']];
+const TERM_KEYS:[string,string][]=[['synonyms','Synonyms'],['antonyms','Antonyms'],['hypernyms','Hypernyms'],['hyponyms','Hyponyms'],['coordinate_terms','Coordinate terms'],['holonyms','Holonyms'],['meronyms','Meronyms'],['derived','Derived terms'],['related','Related terms'],['form_of','Form of'],['alt_of','Alternative form of'],['abbreviations','Abbreviations'],['proverbs','Proverbs']];
 const text=(v:any):string=>typeof v==='string'?v:Array.isArray(v)?v.map(text).join(' '):v==null?'':JSON.stringify(v);
 function Term({t}:{t:any}){
  if(typeof t==='string')return <li lang="ru">{t}</li>;
@@ -61,12 +62,21 @@ export function wordAtPoint(doc:Document,x:number,y:number):string|null{
  while(a>0&&ru.test(t[a-1]))a--;while(b<t.length&&ru.test(t[b]))b++;
  const w=t.slice(a,b).replace(/\u0301/g,'');return w?w:null;
 }
-export default function WordDetails({records,loading,error,onSpeak,status}:{records:Rec[]|null;loading:boolean;error:string;onSpeak?:(word:string)=>void;status?:string}){
+// Long-press (500 ms, little movement) loads the word into practice; a short tap pronounces it.
+const HOLD_MS=500,MOVE_PX=10;
+export default function WordDetails({records,loading,error,onSpeak,onLoad,status}:{records:Rec[]|null;loading:boolean;error:string;onSpeak?:(word:string)=>void;onLoad?:(word:string)=>void;status?:string}){
+ const hold=useRef({timer:0 as any,x:0,y:0,fired:false,suppressUntil:0}).current;
  if(loading)return <p className="muted">Loading everything about this word…</p>;
  if(error)return <p className="setup-message" role="alert">{error}</p>;
  if(!records||!records.length)return <p className="muted">No further information is available for this word.</p>;
  return <>
-  <p className="alphabet-status" role="status">{status||'Tap any Russian word to hear it.'}</p>
-  <div className="details" onClick={e=>{if(!onSpeak)return;const target=e.target as HTMLElement;if(target.closest('summary'))return;const w=wordAtPoint(target.ownerDocument,e.clientX,e.clientY);if(w)onSpeak(w);}}>{records.map((r,i)=><Record key={i} r={r} index={i} total={records.length}/>)}</div>
+  <p className="alphabet-status" role="status">{status||'Tap any Russian word to hear it; hold it to practise it.'}</p>
+  <div className="details"
+   onPointerDown={e=>{if(!onLoad||e.button>0)return;const target=e.target as HTMLElement;if(target.closest('summary'))return;const doc=target.ownerDocument,x=e.clientX,y=e.clientY;hold.x=x;hold.y=y;hold.fired=false;clearTimeout(hold.timer);hold.timer=setTimeout(()=>{const w=wordAtPoint(doc,x,y);if(w){hold.fired=true;hold.suppressUntil=Date.now()+1000;
+    // The panel closes while the finger is still down; swallow any click in the next second so it cannot reopen it.
+    const swallow=(ev:Event)=>{if(Date.now()<hold.suppressUntil){ev.stopPropagation();ev.preventDefault();}else doc.removeEventListener('click',swallow,true);};doc.addEventListener('click',swallow,true);setTimeout(()=>doc.removeEventListener('click',swallow,true),1100);onLoad(w);}},HOLD_MS);}}
+   onPointerMove={e=>{if(hold.timer&&(Math.abs(e.clientX-hold.x)>MOVE_PX||Math.abs(e.clientY-hold.y)>MOVE_PX)){clearTimeout(hold.timer);hold.timer=0;}}}
+   onPointerUp={()=>{clearTimeout(hold.timer);hold.timer=0;}} onPointerCancel={()=>{clearTimeout(hold.timer);hold.timer=0;}} onContextMenu={e=>e.preventDefault()}
+   onClick={e=>{if(hold.fired||Date.now()<hold.suppressUntil){hold.fired=false;return;}if(!onSpeak)return;const target=e.target as HTMLElement;if(target.closest('summary'))return;const w=wordAtPoint(target.ownerDocument,e.clientX,e.clientY);if(w)onSpeak(w);}}>{records.map((r,i)=><Record key={i} r={r} index={i} total={records.length}/>)}</div>
  </>;
 }

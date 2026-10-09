@@ -63,3 +63,10 @@ test('the vocabulary cap keeps only the most frequent words and explains an empt
  const any=await choose(32,undefined,undefined,()=>{},0);assert.ok(Number.isInteger(any.rank));
  await assert.rejects(choose(32,undefined,undefined,()=>{},-1),/vocabulary size/);
 });
+
+test('lookup returns every entry for a spelling, ignoring stress marks',async()=>{
+ const storage=cacheStorage();const choose=createDictionary(response,()=>.5,{storage});
+ const hits=await choose.lookup('окно́');assert.ok(hits.length>=1);assert.ok(hits.every(w=>w.text==='окно'));assert.equal(hits[0].stress,'окно́');
+ assert.ok((await choose.lookup('замок')).length>=2,'homographs: за́мок and замо́к');
+ assert.deepEqual(await choose.lookup('ъъъ'),[]);assert.deepEqual(await choose.lookup(''),[]);
+});

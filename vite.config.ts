@@ -9,7 +9,7 @@ import {basename} from 'node:path';
 function rawDictionary(root:string):Plugin['configureServer']{
  return server=>{server.middlewares.use(async(req,res,next)=>{
   const path=req.url?.split('?')[0]??'';
-  if(!/^\/(dictionary\/full-[0-9a-f]{64}|words\/\d{4}-[0-9a-f]{16})\.json\.gz$/.test(path))return next();
+  if(!/^\/(dictionary\/full-[0-9a-f]{64}|(words|forms)\/\d{4}-[0-9a-f]{16})\.json\.gz$/.test(path))return next();
   try{const body=await readFile(fileURLToPath(new URL(`${root}${path.slice(0,path.lastIndexOf('/')+1)}${basename(path)}`,import.meta.url)));res.setHeader('Content-Type','application/octet-stream');res.setHeader('Content-Length',body.length);res.end(body);}catch{next();}
  });};
 }
